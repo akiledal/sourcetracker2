@@ -21,6 +21,7 @@ Currently, parallelization across a single machine is
 supported for both estimation of source proportions and leave-one-out source
 class prediction. The speedup from parallelization should be approximately a
 factor of ``jobs`` that are passed. For instance, passing ``--jobs 4`` will
+<<<<<<< HEAD
 decrease runtime approximately 4X (less due to overhead). The package
 ``ipyparallel`` is used to enable parallelization. Note that you can only specify
 as many jobs as you have sink samples. For instance, passing 10 jobs with only 5
@@ -30,6 +31,17 @@ cannot be split up into multiple jobs.
 
 # Installation
 SourceTracker2 requires Python 3. If you don't have a local version of Python 3, you
+=======
+decrease runtime approximately 4X (less due to overhead). The package
+``ipyparallel`` is used to enable parallelization. Note that you can only specify
+as many jobs as you have sink samples. For instance, passing 10 jobs with only 5
+sink samples will not result in the code executing any faster than passing 5 jobs,
+since there is a 1 sink per job limit. Said another way, a single sink sample
+cannot be split up into multiple jobs.
+
+# Installation
+SourceTracker2 requires Python 3. If you don't have a local version of Python 3, you
+>>>>>>> cf2fed6db2a74232d990544bd9f204dcb3d093a8
 might want to install it using [Anaconda](https://docs.continuum.io/anaconda/install).
 
 To install locally for SourceTracker2:
@@ -153,8 +165,5 @@ strategy**
 rarefaction depth of 2500**    
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --sink_rarefaction_depth 2500``
 
-**Calculate the proportion of each source in each sink, using ipyparallel to run in parallel with 8 jobs**  
-``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --jobs 8``
-=======
-in parallel with 5 jobs**  
+**Calculate the proportion of each source in each sink, using ipyparallel to run in parallel with 5 jobs**  
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --jobs 5``
