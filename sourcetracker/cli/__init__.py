@@ -10,4 +10,3 @@ def cli():
     pass
 
 import_module('sourcetracker.cli.gibbs')
-

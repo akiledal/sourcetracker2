@@ -124,5 +124,3 @@ rarefaction depth of 2500**
 **Calculate the proportion of each source in each sink, using ipyparallel to run
 in parallel with 8 jobs**  
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --jobs 8``
-
-
