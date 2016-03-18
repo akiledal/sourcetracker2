@@ -22,12 +22,37 @@ supported for both estimation of source proportions and leave-one-out source
 class prediction. The speedup from parallelization should be approximately a 
 factor of ``jobs`` that are passed. For instance, passing ``--jobs 4`` will
 decrease runtime approximately 4X (less due to overhead). The package 
-``ipyparallel`` is used to enable parallelization.
+``ipyparallel`` is used to enable parallelization. Note that you can only specify 
+as many jobs as you have sink samples. For instance, passing 10 jobs with only 5 
+sink samples will not result in the code executing any faster than passing 5 jobs, 
+since there is a 1 sink per job limit. Said another way, a single sink sample 
+cannot be split up into multiple jobs.
+
+# Installation
+SourceTracker2 requires Python 3. If you don't have a local version of Python 3, you 
+might want to install it using [Anaconda](https://docs.continuum.io/anaconda/install).
+
+To install locally for SourceTracker2:
+$cd /location/of/Anaconda.sh
+$bash Anaconda.sh
+
+Create the Python 3 environment named `py3` with required dependencies
+$conda create -n py3 python=3 numpy scipy h5py hdf5
+
+This will have created your local python 3 environment. To use your environment:
+$source activate py3
+
+Now we can get SourceTracker2 and install
+$git clone https://github.com/biota/SourceTracker2.git
+$python setup.py install
+
+This should successfully install SourceTracker2 locally. Try calling:
+$sourcetracker2 gibbs --help
 
 # Theory
 
 This readme describes some of the basic theory for use of SourceTracker2. For
-more theory, please see the [juypter notebook](https://github.com/biota/SourceTracker_rc/blob/master/ipynb/Sourcetracking%20using%20a%20Gibbs%20Sampler.ipynb).
+more theory and a visual walkthrough, please see the [juypter notebook](https://github.com/biota/SourceTracker_rc/blob/master/ipynb/Sourcetracking%20using%20a%20Gibbs%20Sampler.ipynb).
 
 There are main two ways to use this script:  
  (1) Estimating the proportions of different (microbial) sources to a sample of
@@ -119,10 +144,10 @@ strategy**
 
 **Calculate the proportion of each source in each sink, using a sink 
 rarefaction depth of 2500**    
-``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --sink_rarefaceiont_depth 2500``
+``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --sink_rarefaction_depth 2500``
 
 **Calculate the proportion of each source in each sink, using ipyparallel to run
-in parallel with 8 jobs**  
-``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --jobs 8``
+in parallel with 5 jobs**  
+``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --jobs 5``
 
 
