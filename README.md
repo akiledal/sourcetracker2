@@ -27,7 +27,7 @@ create a speedup of roughly 4X (less due to overhead). The package
 # Theory
 
 This readme describes some of the basic theory for use of SourceTracker2. For
-more theory, please see the [juypter notebook](currently_broken_link.html).
+more theory, please see the [juypter notebook](https://github.com/biota/SourceTracker_rc/blob/master/ipynb/Sourcetracking%20using%20a%20Gibbs%20Sampler.ipynb).
 
 There are several ways to use this script:
  (1) Estimating the proportions of different (microbial) sources to a sample of
