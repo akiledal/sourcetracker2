@@ -29,7 +29,7 @@ decrease runtime approximately 4X (less due to overhead). The package
 This readme describes some of the basic theory for use of SourceTracker2. For
 more theory, please see the [juypter notebook](https://github.com/biota/SourceTracker_rc/blob/master/ipynb/Sourcetracking%20using%20a%20Gibbs%20Sampler.ipynb).
 
-There are several ways to use this script:  
+There are main two ways to use this script:  
  (1) Estimating the proportions of different (microbial) sources to a sample of
      a (microbial) sink.  
  (2) Using a leave-one-out (LOO) strategy, predict the metadata class of a
