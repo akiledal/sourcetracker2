@@ -20,7 +20,7 @@ A major improvment in this version of SourceTracker is the ability to run it in 
 Currently, parallelization across a single machine is
 supported for both estimation of source proportions and leave-one-out source
 class prediction. The speedup from parallelization should be approximately a 
-factor of ``jobs`` that are passed. For instance, passing ``--jobs 4`` should
+factor of ``jobs`` that are passed. For instance, passing ``--jobs 4`` will
 decrease runtime approximately 4X (less due to overhead). The package 
 ``ipyparallel`` is used to enable parallelization.
 
@@ -29,16 +29,16 @@ decrease runtime approximately 4X (less due to overhead). The package
 This readme describes some of the basic theory for use of SourceTracker2. For
 more theory, please see the [juypter notebook](https://github.com/biota/SourceTracker_rc/blob/master/ipynb/Sourcetracking%20using%20a%20Gibbs%20Sampler.ipynb).
 
-There are several ways to use this script:
+There are several ways to use this script:  
  (1) Estimating the proportions of different (microbial) sources to a sample of
-     a (microbial) sink.
+     a (microbial) sink.  
  (2) Using a leave-one-out (LOO) strategy, predict the metadata class of a
      given (microbial) sample.
 
-The main functionality is (1), the estimation of the proportion of `sources`
+The main functionality (1) is, the estimation of the proportion of `sources`
 to a given `sink`. A `source` and a `sink` are both vectors of feature
 abundances. A  `source` is typically multiple samples that come from
-an environment of interest, and a `sink` is usually a single sample. 
+an environment of interest, a `sink` is usually a single sample. 
 
 As an example, consider the classic balls in urns problem. There are three urns, each
 of which contains a set of differently colored balls in different proportions.
@@ -62,23 +62,23 @@ knowledge of the colors of your mixed sample and the proportions of each color
 in the sinks.
 
 The Gibb's sampler is a method for estimating ``u_1``, ``u_2`` and ``u_3``. In
-SourceTracker2, the Gibb's sampler is used to make an
+SourceTracker2, the Gibb's sampler would be used to make an
 estimate of the source proportions (``u_1``, ``u_2``, and ``u_3``) plus an
-estimate of the proportion of balls in the sample that came from an 'unknown'
-source. In the urns example there is no unknown source; all the balls came from
+estimate of the proportion of balls in the sample that came from an unknown
+source. In the urns example there is no unknown source; all of the balls came from
 one of the three urns. In a real set of microbial samples, however, it is common that the
-source samples assayed are not the only source of microbes found in the sink sample (air
-microbes, skin microbes of those processing the samples, etc.).
+source samples assayed are not the only source of microbes found in the sink
+sample (air, skin, soil or other microbial sources that were not included).
 
 In practice, researchers often take multiple samples from a given source
 environment (e.g. to learn the true distribution of features in the source). It
 is desirable to 'collapse' samples from the same source into one representative
 source sample. This is mainly for interpretability. Consider the urn example
 above. In practice we would not know the exact contents of any of the urns.
-The only way to learn the 'true' source distributions would be to sample them
+The only way to learn the actual source distributions would be to sample them
 repeatedly. Combining n samples from urn 1 into a single source would make the
 estimate of the urns true proportions of different colors more accurate and
-would make interpreting our results easier; there would be only 3 source
+would make interpreting the results easier; there would be only 3 source
 proportions, plus the unknown, to interpret rather than 3n+1 (assuming n samples from each
 urn). Please read about (2) below to understand an important
 limitation of this collapsing processes.
@@ -107,21 +107,21 @@ LOO strategy to make sure that all sources within each class look the same.
 These usage examples expect that you are in the directory
 ``sourcetracker2/data/tiny-test/``
 
-Calculate the proportion of each source in each sink  
+###Calculate the proportion of each source in each sink  
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/``
 
-Calculate the class label (i.e. 'Env') of each source using a leave one out
+###Calculate the class label (i.e. 'Env') of each source using a leave one out
 strategy  
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt --loo -o source_loo/``
 
-Calculate the proportion of each source in each sink, using 100 burnins 
+###Calculate the proportion of each source in each sink, using 100 burnins 
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --burnin 100``
 
-Calculate the proportion of each source in each sink, using a sink 
+###Calculate the proportion of each source in each sink, using a sink 
 rarefaction depth of 2500  
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --sink_rarefaceiont_depth 2500``
 
-Calculate the proportion of each source in each sink, using ipyparallel to run
+###Calculate the proportion of each source in each sink, using ipyparallel to run
 in parallel with 8 jobs  
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --jobs 8``
 
