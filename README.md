@@ -33,7 +33,7 @@ There are several ways to use this script:
  (1) Estimating the proportions of different (microbial) sources to a sample of
      a (microbial) sink.  
  (2) Using a leave-one-out (LOO) strategy, predict the metadata class of a
-     given (microbial) sample.
+     given (microbial) sample.  
 
 The main functionality (1) is, the estimation of the proportion of `sources`
 to a given `sink`. A `source` and a `sink` are both vectors of feature
