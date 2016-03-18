@@ -104,25 +104,25 @@ LOO strategy to make sure that all sources within each class look the same.
 
 # Usage examples
 
-These usage examples expect that you are in the directory
+These usage examples expect that you are in the directory  
 ``sourcetracker2/data/tiny-test/``
 
 **Calculate the proportion of each source in each sink**  
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/``
 
 **Calculate the class label (i.e. 'Env') of each source using a leave one out
-strategy**  
+strategy**    
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt --loo -o source_loo/``
 
-**Calculate the proportion of each source in each sink, using 100 burnins** 
+**Calculate the proportion of each source in each sink, using 100 burnins**  
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --burnin 100``
 
 **Calculate the proportion of each source in each sink, using a sink 
-rarefaction depth of 2500**  
+rarefaction depth of 2500**    
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --sink_rarefaceiont_depth 2500``
 
 **Calculate the proportion of each source in each sink, using ipyparallel to run
-in parallel with 8 jobs** 
+in parallel with 8 jobs**  
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --jobs 8``
 
 
