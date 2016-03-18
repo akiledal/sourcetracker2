@@ -33,20 +33,25 @@ SourceTracker2 requires Python 3. If you don't have a local version of Python 3,
 might want to install it using [Anaconda](https://docs.continuum.io/anaconda/install).
 
 To install locally for SourceTracker2:
+
 $cd /location/of/Anaconda.sh
 $bash Anaconda.sh
 
 Create the Python 3 environment named `py3` with required dependencies
+
 $conda create -n py3 python=3 numpy scipy h5py hdf5
 
 This will have created your local python 3 environment. To use your environment:
+
 $source activate py3
 
 Now we can get SourceTracker2 and install
+
 $git clone https://github.com/biota/SourceTracker2.git
 $python setup.py install
 
 This should successfully install SourceTracker2 locally. Try calling:
+
 $sourcetracker2 gibbs --help
 
 # Theory
