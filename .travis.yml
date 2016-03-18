@@ -1,0 +1,19 @@
+# Check on http://lint.travis-ci.org/ after modifying! Taken and modified
+# from https://github.com/biocore/scikit-bio/blob/master/.travis.yml
+sudo: false
+language: python
+env:
+  - PYTHON_VERSION=3.5
+before_install:
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=/home/travis/miniconda3/bin:$PATH
+install:
+  - conda create --yes -n st2 python=$PYTHON_VERSION nose numpy scipy h5py flake8 scikit-bio=0.4.0
+  - source activate st2
+  - pip install .
+script:
+  - nosetests
+  - flake8 sourcetracker setup.py
+  - sourcetracker2 gibbs --help
