@@ -31,6 +31,7 @@ cannot be split up into multiple jobs.
 # Installation
 
 SourceTracker2 currently requires `Python 3` and the following packages:
+
 `numpy`  
 `scipy`  
 `hdf5`  
