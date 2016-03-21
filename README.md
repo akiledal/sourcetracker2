@@ -31,11 +31,11 @@ cannot be split up into multiple jobs.
 # Installation
 
 SourceTracker2 currently requires `Python 3` and the following packages:
-`numpy`
-`scipy`
-`hdf5`
-`h5py`
-`biom`
+`numpy`  
+`scipy`  
+`hdf5`  
+`h5py`  
+`biom`  
 `scikit-bio v 0.4.0`
 
 If you don't have a local version of Python 3, you might want to install it
@@ -45,7 +45,7 @@ good way to get the stack of dependencies (`numpy`, `scipy`, etc.).
 To install Python 3 (downloaded from Anaconda) locally for SourceTracker2, open
 a terminal and type:
 
-`cd /location/of/Anaconda.sh`
+`cd /location/of/Anaconda.sh`  
 `bash Anaconda.sh`
 
 Now, create the Python 3 environment named `py3` (any name is acceptable, just
@@ -71,7 +71,7 @@ you have activated the Python 3 environment before this step, otherwise your
 default Python (which may or may not be correct) will be used, and it may
 prevent SourceTracker 2 from working.
 
-`cd /location/of/SourceTracker2/`
+`cd /location/of/SourceTracker2/`  
 `python setup.py install`
 
 To test that your installation was successful, try the following call:
