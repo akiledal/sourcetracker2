@@ -19,7 +19,6 @@ classes = """
     Operating System :: POSIX
     Operating System :: Unix
     Programming Language :: Python
-    Programming Language :: Python :: 2.7
     Programming Language :: Python :: 3.5
     Topic :: Scientific/Engineering
     Topic :: Scientific/Engineering :: Bio-Informatics
@@ -31,7 +30,7 @@ description = "Python implementation of the SourceTracker R package."
 setup(
     name='sourcetracker2',
     version=__version__,
-    license='proprietary',
+    license='modified BSD',
     description=description,
     long_description=description,
     author='Biota Technology',
@@ -42,7 +41,7 @@ setup(
     test_suite='nose.collector',
     packages=find_packages(),
     install_requires=['numpy', 'h5py', 'biom-format >= 2.1.5, < 2.2.0',
-                      'click', 'ipyparallel'],
+                      'click', 'ipyparallel', 'scikit-bio == 0.4.0'],
     classifiers=classifiers,
     entry_points='''
         [console_scripts]
