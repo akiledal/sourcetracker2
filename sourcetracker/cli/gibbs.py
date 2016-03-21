@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # ----------------------------------------------------------------------------
 # Copyright (c) 2016--, Biota Technology.
+# www.biota.com
 #
 # Distributed under the terms of the Modified BSD License.
 #
