@@ -8,10 +8,10 @@
 # ----------------------------------------------------------------------------
 from __future__ import division
 
-import numpy as np
-from skbio.stats._subsample import subsample_counts
 import os
 from copy import copy
+import numpy as np
+from skbio.stats._subsample import subsample_counts
 
 
 def parse_mapping_file(mf_lines):
@@ -23,7 +23,7 @@ def parse_mapping_file(mf_lines):
     Parameters
     ----------
     mf_lines : list
-        Each entry of is a tab delimited string corresponding to a row of the
+        Each entry of the list is a tab delimited string corresponding to a row of the
         mapping file.
 
     Returns
@@ -49,7 +49,7 @@ def collapse_sources(samples, sample_metadata, category, biom_table,
     sample_metadata : dict
         A mapping file that has been parsed with parse_mapping_file. The
         keys are sample ids, and the values are dicts with each header in the
-        mapping file as a key, and the values from that sample under that
+        mapping file as a key and the values from that sample under that
         header.
     category : str
         Header in the mapping file (and thus each second level dictionary of
@@ -95,7 +95,7 @@ def collapse_sources(samples, sample_metadata, category, biom_table,
     Collapsed table data:
             o1  o2  o3  o4
     A       70  35  35  110
-    B       100 0   10  5
+    B       70  5   5   5
     """
     envs = []
     sample_groups = []
@@ -135,7 +135,7 @@ def subsample_sources_sinks(sources_data, sinks, feature_table, sources_depth,
     Parameters
     ----------
     sources_data : np.array
-        Two dimentional array with collapsed source data.
+        Two dimensional array with collapsed source data.
     sinks : np.array
         One dimensional array of strings, with each string being the sample ID
         of a sink in `feature_table`.
@@ -286,7 +286,7 @@ class ConditionalProbability(object):
         alpha1 : float
             Prior counts of each species in the training environments. Higher
             values decrease the trust in the training environments, and make
-            the source environment distrubitons over taxa smoother. By default,
+            the source environment distributions over taxa smoother. By default,
             this is set to 0.001, which indicates reasonably high trust in all
             source environments, even those with few training sequences. This
             is useful when only a small number of biological samples are
@@ -516,7 +516,7 @@ def gibbs_sampler(cp, sink, restarts, draws_per_restart, burnin, delay):
     # probabilities. The order in which the sequences are selected for
     # reassignment must be random to avoid a systematic bias where the
     # sequences occuring later in the taxon_sequence book-keeping vector
-    # recieve more accurate reassignments by virtue of more updates to the
+    # receive more accurate reassignments by virtue of more updates to the
     # probability model. 'order' will be shuffled each pass, but can be
     # instantiated here to avoid unnecessary duplication.
     sink_sum = sink.sum()
@@ -842,4 +842,3 @@ def _cli_loo_runner(sample, source_category, alpha1, alpha2, beta, restarts,
     o = open(os.path.join(output_dir, sample + '.txt'), 'w')
     o.writelines(lines)
     o.close()
-    # calculated_assignments.append(results[1])

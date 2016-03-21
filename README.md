@@ -3,7 +3,7 @@
 # SourceTracker2
 
 SourceTracker was originally described in [Knights et al., 2011](http://www.ncbi.nlm.nih.gov/pubmed/21765408).
-If you use this package, please cite the original SourceTracker paper linked 
+If you use this package, please cite the original SourceTracker paper linked
 above.
 
 # Documentation
@@ -12,24 +12,36 @@ This script replicates and extends the functionality of Dan Knights's
 SourceTracker R package.
 
 The ``mapping file`` which describes the ``sources`` and ``sinks`` must be
-formatted in the same way it was for the SourceTracker R package. Specifically, 
+formatted in the same way it was for the SourceTracker R package. Specifically,
 there must be a column ``SourceSink`` and a column ``Env``. For an example, look
-at ``sourcetracker2/data/tiny-test/``. 
+at ``sourcetracker2/data/tiny-test/``.
 
-A major improvment in this version of SourceTracker is the ability to run it in parallel. 
+A major improvment in this version of SourceTracker is the ability to run it in parallel.
 Currently, parallelization across a single machine is
 supported for both estimation of source proportions and leave-one-out source
-class prediction. The speedup from parallelization should be approximately a 
+class prediction. The speedup from parallelization should be approximately a
 factor of ``jobs`` that are passed. For instance, passing ``--jobs 4`` will
-decrease runtime approximately 4X (less due to overhead). The package 
-``ipyparallel`` is used to enable parallelization. Note that you can only specify 
-as many jobs as you have sink samples. For instance, passing 10 jobs with only 5 
-sink samples will not result in the code executing any faster than passing 5 jobs, 
-since there is a 1 sink per job limit. Said another way, a single sink sample 
+<<<<<<< HEAD
+decrease runtime approximately 4X (less due to overhead). The package
+``ipyparallel`` is used to enable parallelization. Note that you can only specify
+as many jobs as you have sink samples. For instance, passing 10 jobs with only 5
+sink samples will not result in the code executing any faster than passing 5 jobs,
+since there is a 1 sink per job limit. Said another way, a single sink sample
 cannot be split up into multiple jobs.
 
 # Installation
-SourceTracker2 requires Python 3. If you don't have a local version of Python 3, you 
+SourceTracker2 requires Python 3. If you don't have a local version of Python 3, you
+=======
+decrease runtime approximately 4X (less due to overhead). The package
+``ipyparallel`` is used to enable parallelization. Note that you can only specify
+as many jobs as you have sink samples. For instance, passing 10 jobs with only 5
+sink samples will not result in the code executing any faster than passing 5 jobs,
+since there is a 1 sink per job limit. Said another way, a single sink sample
+cannot be split up into multiple jobs.
+
+# Installation
+SourceTracker2 requires Python 3. If you don't have a local version of Python 3, you
+>>>>>>> cf2fed6db2a74232d990544bd9f204dcb3d093a8
 might want to install it using [Anaconda](https://docs.continuum.io/anaconda/install).
 
 To install locally for SourceTracker2:
@@ -70,7 +82,7 @@ There are main two ways to use this script:
 The main functionality (1) is, the estimation of the proportion of `sources`
 to a given `sink`. A `source` and a `sink` are both vectors of feature
 abundances. A  `source` is typically multiple samples that come from
-an environment of interest, a `sink` is usually a single sample. 
+an environment of interest, a `sink` is usually a single sample.
 
 As an example, consider the classic balls in urns problem. There are three urns, each
 of which contains a set of differently colored balls in different proportions.
@@ -121,11 +133,11 @@ classes of all samples.
 
 In practice, this function is useful for checking whether the source groupings
 you have computed are good groupings. As an example, imagine that you are baking
-bread and want to know where the microbes are coming from in your dough. 
+bread and want to know where the microbes are coming from in your dough.
 You think there are three main sources: flour, water, hands. You take 10 samples
 from each of those environments (10 different bags of flour, 10 samples from
 water, 10 samples from your hands on different days). For computing source
-proportions, you would normally collapse each of the 10 samples from the given 
+proportions, you would normally collapse each of the 10 samples from the given
 class into one source (so you'd end up with a 'Flour', 'Water', and 'Hand'
 source). However, if the flour you use comes from different facilities, it is
 likely that the samples will have very different microbial compositions. If this is the
@@ -149,12 +161,9 @@ strategy**
 **Calculate the proportion of each source in each sink, using 100 burnins**  
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --burnin 100``
 
-**Calculate the proportion of each source in each sink, using a sink 
+**Calculate the proportion of each source in each sink, using a sink
 rarefaction depth of 2500**    
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --sink_rarefaction_depth 2500``
 
-**Calculate the proportion of each source in each sink, using ipyparallel to run
-in parallel with 5 jobs**  
+**Calculate the proportion of each source in each sink, using ipyparallel to run in parallel with 5 jobs**  
 ``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --jobs 5``
-
-
