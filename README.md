@@ -11,62 +11,72 @@ above.
 This script replicates and extends the functionality of Dan Knights's
 SourceTracker R package.
 
-The ``mapping file`` which describes the ``sources`` and ``sinks`` must be
+The `mapping file` which describes the `sources` and `sinks` must be
 formatted in the same way it was for the SourceTracker R package. Specifically,
-there must be a column ``SourceSink`` and a column ``Env``. For an example, look
-at ``sourcetracker2/data/tiny-test/``.
+there must be a column `SourceSink` and a column `Env`. For an example, look
+at `sourcetracker2/data/tiny-test/`.
 
 A major improvment in this version of SourceTracker is the ability to run it in parallel.
 Currently, parallelization across a single machine is
 supported for both estimation of source proportions and leave-one-out source
 class prediction. The speedup from parallelization should be approximately a
-factor of ``jobs`` that are passed. For instance, passing ``--jobs 4`` will
-<<<<<<< HEAD
+factor of `jobs` that are passed. For instance, passing `--jobs 4` will
 decrease runtime approximately 4X (less due to overhead). The package
-``ipyparallel`` is used to enable parallelization. Note that you can only specify
+`ipyparallel` is used to enable parallelization. Note that you can only specify
 as many jobs as you have sink samples. For instance, passing 10 jobs with only 5
 sink samples will not result in the code executing any faster than passing 5 jobs,
 since there is a 1 sink per job limit. Said another way, a single sink sample
 cannot be split up into multiple jobs.
 
 # Installation
-SourceTracker2 requires Python 3. If you don't have a local version of Python 3, you
-=======
-decrease runtime approximately 4X (less due to overhead). The package
-``ipyparallel`` is used to enable parallelization. Note that you can only specify
-as many jobs as you have sink samples. For instance, passing 10 jobs with only 5
-sink samples will not result in the code executing any faster than passing 5 jobs,
-since there is a 1 sink per job limit. Said another way, a single sink sample
-cannot be split up into multiple jobs.
 
-# Installation
-SourceTracker2 requires Python 3. If you don't have a local version of Python 3, you
->>>>>>> cf2fed6db2a74232d990544bd9f204dcb3d093a8
-might want to install it using [Anaconda](https://docs.continuum.io/anaconda/install).
+SourceTracker2 currently requires `Python 3` and the following packages:
+`numpy`
+`scipy`
+`hdf5`
+`h5py`
+`biom`
+`scikit-bio v 0.4.0`
 
-To install locally for SourceTracker2:
+If you don't have a local version of Python 3, you might want to install it
+using [Anaconda](https://docs.continuum.io/anaconda/install). `Conda` is also a
+good way to get the stack of dependencies (`numpy`, `scipy`, etc.).
 
-$cd /location/of/Anaconda.sh
+To install Python 3 (downloaded from Anaconda) locally for SourceTracker2, open
+a terminal and type:
 
-$bash Anaconda.sh
+`cd /location/of/Anaconda.sh`
+`bash Anaconda.sh`
 
-Create the Python 3 environment named `py3` with required dependencies
+Now, create the Python 3 environment named `py3` (any name is acceptable, just
+make sure it is one you will remember) with required dependencies:
 
-$conda create -n py3 python=3 numpy scipy h5py hdf5
+`conda create -n py3 python=3 numpy scipy h5py hdf5 scikit-bio=0.4.0`
 
-This will have created your local python 3 environment. To use your environment:
+This will create a local Python 3 environment named (`py3`, or whatever you
+called it above). To use your environment:
 
-$source activate py3
+`source activate py3`
 
-Now we can get SourceTracker2 and install
+You will need to do this step every time you want to use SourceTracker2 (unless
+Python 3 is your default Python, and you have the correct version of every
+package installed).
 
-$git clone https://github.com/biota/SourceTracker2.git
+Now, to install SourceTracker2:
 
-$python setup.py install
+`git clone https://github.com/biota/SourceTracker2.git`
 
-This should successfully install SourceTracker2 locally. Try calling:
+Move to the location of SourceTracker2's setup.py file and install. Make sure
+you have activated the Python 3 environment before this step, otherwise your
+default Python (which may or may not be correct) will be used, and it may
+prevent SourceTracker 2 from working.
 
-$sourcetracker2 gibbs --help
+`cd /location/of/SourceTracker2/`
+`python setup.py install`
+
+To test that your installation was successful, try the following call:
+
+`sourcetracker2 gibbs --help`
 
 # Theory
 
@@ -86,11 +96,11 @@ an environment of interest, a `sink` is usually a single sample.
 
 As an example, consider the classic balls in urns problem. There are three urns, each
 of which contains a set of differently colored balls in different proportions.
-Imagine that you reach into Urn1 and remove ``u_1`` balls without looking at the
-colors. You reach into Urn2 and remove ``u_2`` balls, again without looking at
-the colors. Finally, you reach into Urn3 and remove ``u_3`` balls, without
-looking at the colors. You then mix your individual samples (``u_1``, ``u_2``,
-and ``u_3``) and produce one mixed sample whose color counts you survey.
+Imagine that you reach into Urn1 and remove `u_1` balls without looking at the
+colors. You reach into Urn2 and remove `u_2` balls, again without looking at
+the colors. Finally, you reach into Urn3 and remove `u_3` balls, without
+looking at the colors. You then mix your individual samples (`u_1`, `u_2`,
+and `u_3`) and produce one mixed sample whose color counts you survey.
 
 |        | Urn1 | Urn2 | Urn3 | Sample |
 |--------|:----:|------|------|--------|
@@ -101,13 +111,13 @@ and ``u_3``) and produce one mixed sample whose color counts you survey.
 | Orange | 79   | 18   | 0    | 50     |
 
 
-Your goal is to recover the numbers ``u_1``, ``u_2``, and ``u_3`` using only the
+Your goal is to recover the numbers `u_1`, `u_2`, and `u_3` using only the
 knowledge of the colors of your mixed sample and the proportions of each color
 in the sinks.
 
-The Gibb's sampler is a method for estimating ``u_1``, ``u_2`` and ``u_3``. In
+The Gibb's sampler is a method for estimating `u_1`, `u_2` and `u_3`. In
 SourceTracker2, the Gibb's sampler would be used to make an
-estimate of the source proportions (``u_1``, ``u_2``, and ``u_3``) plus an
+estimate of the source proportions (`u_1`, `u_2`, and `u_3`) plus an
 estimate of the proportion of balls in the sample that came from an unknown
 source. In the urns example there is no unknown source; all of the balls came from
 one of the three urns. In a real set of microbial samples, however, it is common that the
@@ -149,21 +159,32 @@ LOO strategy to make sure that all sources within each class look the same.
 # Usage examples
 
 These usage examples expect that you are in the directory  
-``sourcetracker2/data/tiny-test/``
+`sourcetracker2/data/tiny-test/`
 
 **Calculate the proportion of each source in each sink**  
-``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/``
+`sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/`
 
 **Calculate the class label (i.e. 'Env') of each source using a leave one out
 strategy**    
-``sourcetracker2 gibbs -i otu_table.biom -m map.txt --loo -o source_loo/``
+`sourcetracker2 gibbs -i otu_table.biom -m map.txt --loo -o source_loo/`
 
 **Calculate the proportion of each source in each sink, using 100 burnins**  
-``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --burnin 100``
+`sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --burnin 100`
 
 **Calculate the proportion of each source in each sink, using a sink
 rarefaction depth of 2500**    
-``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --sink_rarefaction_depth 2500``
+`sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --sink_rarefaction_depth 2500`
 
 **Calculate the proportion of each source in each sink, using ipyparallel to run in parallel with 5 jobs**  
-``sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --jobs 5``
+`sourcetracker2 gibbs -i otu_table.biom -m map.txt -o mixing_proportions/ --jobs 5`
+
+# Miscellaneous
+
+The current implementation of SourceTracker 2 does not contain functionality for
+visualization of results or autotuning of the parameters (`alpha1`, `alpha1`,
+etc.). For an example of how you might visualize the data, please see
+this [juypter notebook](https://github.com/biota/SourceTracker2/blob/master/ipynb/Visualizing%20results.ipynb).
+For autotuning functionality, please see the original R code. 
+
+Like the old SourceTracker, SourceTracker2 rarifies the source environments it
+collapses by default.
