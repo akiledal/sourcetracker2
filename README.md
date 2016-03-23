@@ -30,54 +30,29 @@ cannot be split up into multiple jobs.
 
 # Installation
 
-SourceTracker2 currently requires `Python 3` and the following packages:
+SourceTracker2 is Python 3 software. The easiest way to install it is using Anaconda. If you don't already have Anaconda installed, you can install it following [their install instructions](https://docs.continuum.io/anaconda/install).
 
-`numpy`  
-`scipy`  
-`hdf5`  
-`h5py`  
-`biom`  
-`scikit-bio v 0.4.0`
+To install SourceTracker 2 using Anaconda, run the following commands:
 
-If you don't have a local version of Python 3, you might want to install it
-using [Anaconda](https://docs.continuum.io/anaconda/install). `Conda` is also a
-good way to get the stack of dependencies (`numpy`, `scipy`, etc.).
+```bash
+conda create -n st2 python=3 numpy scipy h5py hdf5 scikit-bio=0.4.0`
+source activate st2
+pip install https://github.com/biota/sourcetracker2/archive/master.zip
+```
 
-To install Python 3 (downloaded from Anaconda) locally for SourceTracker2, open
-a terminal and type:
+To test that your installation was successful, try the following command:
 
-`cd /location/of/Anaconda.sh`  
-`bash Anaconda.sh`
+```bash
+sourcetracker2 gibbs --help
+```
 
-Now, create the Python 3 environment named `py3` (any name is acceptable, just
-make sure it is one you will remember) with required dependencies:
+When you open a new terminal, you'll always need to run:
 
-`conda create -n py3 python=3 numpy scipy h5py hdf5 scikit-bio=0.4.0`
+```bash
+source activate st2
+```
 
-This will create a local Python 3 environment named (`py3`, or whatever you
-called it above). To use your environment:
-
-`source activate py3`
-
-You will need to do this step every time you want to use SourceTracker2 (unless
-Python 3 is your default Python, and you have the correct version of every
-package installed).
-
-Now, to install SourceTracker2:
-
-`git clone https://github.com/biota/SourceTracker2.git`
-
-Move to the location of SourceTracker2's setup.py file and install. Make sure
-you have activated the Python 3 environment before this step, otherwise your
-default Python (which may or may not be correct) will be used, and it may
-prevent SourceTracker 2 from working.
-
-`cd /location/of/SourceTracker2/`  
-`python setup.py install`
-
-To test that your installation was successful, try the following call:
-
-`sourcetracker2 gibbs --help`
+to activate your SourceTracker 2 environment. 
 
 # Theory
 
