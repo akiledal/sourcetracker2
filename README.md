@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/biota/sourcetracker2.svg?token=cRee6r8tqQgg7M8jqmie)](https://travis-ci.com/biota/sourcetracker2)
+[![Build Status](https://travis-ci.org/biota/sourcetracker2.svg?branch=master)](https://travis-ci.org/biota/sourcetracker2)
 
 # SourceTracker2
 
