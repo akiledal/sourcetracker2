@@ -24,8 +24,8 @@ def parse_mapping_file(mf_lines):
     Parameters
     ----------
     mf_lines : list
-        Each entry of the list is a tab delimited string corresponding to a row of the
-        mapping file.
+        Each entry of the list is a tab delimited string corresponding to a row
+        of the mapping file.
 
     Returns
     -------
@@ -287,12 +287,12 @@ class ConditionalProbability(object):
         alpha1 : float
             Prior counts of each species in the training environments. Higher
             values decrease the trust in the training environments, and make
-            the source environment distributions over taxa smoother. By default,
-            this is set to 0.001, which indicates reasonably high trust in all
-            source environments, even those with few training sequences. This
-            is useful when only a small number of biological samples are
-            available from a source environment. A more conservative value
-            would be 0.01.
+            the source environment distributions over taxa smoother. By
+            default, this is set to 0.001, which indicates reasonably high
+            trust in all source environments, even those with few training
+            sequences. This is useful when only a small number of biological
+            samples are available from a source environment. A more
+            conservative value would be 0.01.
         alpha2 : float
             Prior counts of each species in the Unknown environment. Higher
             values make the Unknown environment smoother and less prone to

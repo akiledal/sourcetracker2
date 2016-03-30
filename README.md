@@ -16,7 +16,7 @@ formatted in the same way it was for the SourceTracker R package. Specifically,
 there must be a column `SourceSink` and a column `Env`. For an example, look
 at `sourcetracker2/data/tiny-test/`.
 
-A major improvment in this version of SourceTracker is the ability to run it in parallel.
+A major improvement in this version of SourceTracker is the ability to run it in parallel.
 Currently, parallelization across a single machine is
 supported for both estimation of source proportions and leave-one-out source
 class prediction. The speedup from parallelization should be approximately a
@@ -35,7 +35,7 @@ SourceTracker2 is Python 3 software. The easiest way to install it is using Anac
 To install SourceTracker 2 using Anaconda, run the following commands:
 
 ```bash
-conda create -n st2 python=3 numpy scipy h5py hdf5 scikit-bio=0.4.0`
+conda create -n st2 python=3.5 numpy scipy h5py hdf5
 source activate st2
 pip install https://github.com/biota/sourcetracker2/archive/master.zip
 ```
@@ -52,7 +52,7 @@ When you open a new terminal, you'll always need to run:
 source activate st2
 ```
 
-to activate your SourceTracker 2 environment. 
+to activate your SourceTracker 2 environment.
 
 # Theory
 
@@ -160,7 +160,7 @@ The current implementation of SourceTracker 2 does not contain functionality for
 visualization of results or autotuning of the parameters (`alpha1`, `alpha1`,
 etc.). For an example of how you might visualize the data, please see
 this [juypter notebook](https://github.com/biota/SourceTracker2/blob/master/ipynb/Visualizing%20results.ipynb).
-For autotuning functionality, please see the original R code. 
+For autotuning functionality, please see the original R code.
 
 Like the old SourceTracker, SourceTracker2 rarifies the source environments it
 collapses by default.
