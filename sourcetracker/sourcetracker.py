@@ -13,6 +13,10 @@ import os
 from copy import copy
 import numpy as np
 from skbio.stats._subsample import subsample_counts
+import pandas as pd
+from functools import partial
+from biom.table import Table
+import glob
 
 
 def parse_mapping_file(mf_lines):
@@ -795,9 +799,17 @@ def _cli_sink_source_prediction_runner(sample, alpha1, alpha2, beta, restarts,
         Path to the output directory where the results will be saved.
     """
     cp = ConditionalProbability(alpha1, alpha2, beta, sources_data)
-    results = gibbs_sampler(cp, biom_table.data(sample, axis='sample',
-                                                dense=True), restarts,
-                            draws_per_restart, burnin, delay)
+    if isinstance(biom_table, pd.core.frame.DataFrame):
+        sink_data = biom_table.loc[sample].values
+    elif isinstance(biom_table, Table):
+        sink_data = biom_table.data(sample, axis='sample', dense=True)
+    else:
+        raise TypeError('OTU table data is neither Pandas DataFrame nor '
+                        'biom.table.Table. These are the only supported '
+                        'formats.')
+
+    results = gibbs_sampler(cp, sink_data, restarts, draws_per_restart, burnin,
+                            delay)
     lines = _cli_single_sample_formatter(results[0])
     o = open(os.path.join(output_dir, sample + '.txt'), 'w')
     o.writelines(lines)
@@ -842,4 +854,107 @@ def _cli_loo_runner(sample, source_category, alpha1, alpha2, beta, restarts,
     lines = _cli_single_sample_formatter(results[0])
     o = open(os.path.join(output_dir, sample + '.txt'), 'w')
     o.writelines(lines)
+    o.close()
+
+
+def _api_gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
+               draws_per_restart, burnin, delay, output_dir, cluster=None):
+    '''Private method for one-line calls of Gibb's sampling.
+
+    Notes
+    -----
+    This function exists to allow one-line calls to source/sink prediction.
+    This function currently does not support LOO classification. It is a
+    private method meant to be used only by advanced users who know what they
+    want to automate.
+
+    Parameters that are not described in this function body are described
+    elsewhere in this library (e.g. alpha1, alpha2, etc.)
+
+    Warnings
+    --------
+    This function does _not_ perform rarefaction, the user should perform
+    rarefaction prior to calling this function.
+
+    Parameters
+    ----------
+    source_df : DataFrame
+        A dataframe containing source data (rows are sources, columns are
+        OTUs). The index must be the names of the sources.
+    sink_df : DataFrame
+        A dataframe containing sink data (rows are sinks, columns are OTUs).
+        The index must be the names of the sinks.
+    cluster : ipyparallel.client.client.Client or None
+        An ipyparallel Client object, e.g. a started cluster.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import numpy as np
+    >>> from ipyparallel import Client
+    >>> import subprocess
+    >>> import time
+    >>> from sourcetracker.sourcetracker import \
+            (_api_gibbs, _cli_sink_source_prediction_runner)
+
+    Prepare data.
+    >>> data = np.random.randint(0, 1000, size=500).reshape(10, 50)
+    >>> samples = np.array(['s%s' % i for i in range(10)])
+    >>> otus = np.array(['o%s' % i for i in range(50)])
+    >>> sink_samples = np.array([0, 5, 3, 2, 1, 8, 9])
+    >>> source_samples = np.array([4, 6, 7])
+    >>> source_df = pd.DataFrame(data[source_samples, :],
+                                 index=samples[source_samples], columns=otus)
+    >>> sink_df = pd.DataFrame(data[sink_samples, :],
+                               index=samples[sink_samples],
+                               columns=otus)
+
+    Set paramaters.
+    >>> alpha1 = .01
+    >>> alpha2 = .001
+    >>> beta = 10
+    >>> restarts = 5
+    >>> draws_per_restart = 1
+    >>> burnin = 2
+    >>> delay = 1
+
+    Need to create this directory - the function doesn't create it.
+    >>> output_dir_1 = '/Users/wdwvt/Desktop/test_private_gibbs_1/'
+    >>> output_dir_2 = '/Users/wdwvt/Desktop/test_private_gibbs_2/'
+
+    Call without a cluster
+    >>> _api_gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
+           draws_per_restart, burnin, delay, output_dir_1, cluster=None)
+
+    Start a cluster and call the function.
+    >>> jobs = 4
+    >>> subprocess.Popen('ipcluster start -n %s --quiet' % jobs, shell=True)
+    >>> time.sleep(25)
+    >>> c = Client()
+    >>> _api_gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
+           draws_per_restart, burnin, delay, output_dir_2, cluster=c)
+    '''
+    f = partial(_cli_sink_source_prediction_runner, alpha1=alpha1,
+                alpha2=alpha2, beta=beta, restarts=restarts,
+                draws_per_restart=draws_per_restart, burnin=burnin,
+                delay=delay, sources_data=source_df.values,
+                biom_table=sink_df, output_dir=output_dir)
+    if cluster is not None:
+        cluster[:].map(f, sink_df.index, block=True)
+    else:
+        for sink in sink_df.index:
+            f(sink)
+
+    samples = []
+    samples_data = []
+    for sample_fp in glob.glob(os.path.join(output_dir, '*')):
+        samples.append(sample_fp.strip().split('/')[-1].split('.txt')[0])
+        samples_data.append(np.loadtxt(sample_fp, delimiter='\t'))
+    mp, mps = _cli_collate_results(samples, samples_data, source_df.index)
+
+    o = open(os.path.join(output_dir, 'mixing_proportions.txt'), 'w')
+    o.writelines(mp)
+    o.close()
+    o = open(os.path.join(output_dir, 'mixing_proportions_stds.txt'), 'w')
+    o.writelines(mps)
     o.close()
