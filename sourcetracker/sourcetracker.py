@@ -897,45 +897,49 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
     >>> import subprocess
     >>> import time
     >>> from sourcetracker.sourcetracker import \
-            (_api_gibbs, _cli_sink_source_prediction_runner)
+        (_gibbs, _cli_sink_source_prediction_runner)
 
-    Prepare data.
-    >>> data = np.random.randint(0, 1000, size=500).reshape(10, 50)
-    >>> samples = np.array(['s%s' % i for i in range(10)])
+    Prepare some source data. 
     >>> otus = np.array(['o%s' % i for i in range(50)])
-    >>> sink_samples = np.array([0, 5, 3, 2, 1, 8, 9])
-    >>> source_samples = np.array([4, 6, 7])
-    >>> source_df = pd.DataFrame(data[source_samples, :],
-                                 index=samples[source_samples], columns=otus)
-    >>> sink_df = pd.DataFrame(data[sink_samples, :],
-                               index=samples[sink_samples],
-                               columns=otus)
+    >>> source1 = np.random.randint(0, 1000, size=50)
+    >>> source2 = np.random.randint(0, 1000, size=50)
+    >>> source3 = np.random.randint(0, 1000, size=50)
+    >>> source_df = pd.DataFrame([source1, source2, source3],
+                                 index=['source1', 'source2', 'source3'],
+                                 columns=otus, dtype=np.float64)
 
-    Set paramaters.
+    Prepare some sink data. 
+    >>> sink1 = np.ceil(.5*source1+.5*source2)
+    >>> sink2 = np.ceil(.5*source2+.5*source3)
+    >>> sink3 = np.ceil(.5*source1+.5*source3)
+    >>> sink4 = source1
+    >>> sink5 = source2
+    >>> sink6 = np.random.randint(0, 1000, size=50)
+    >>> sink_df = pd.DataFrame([sink1, sink2, sink3, sink4, sink5, sink6],
+                               index=np.array(['sink%s' % i for i in
+                                               range(1,7)]),
+                               columns=otus, dtype=np.float64)
+
+    Set paramaters
     >>> alpha1 = .01
     >>> alpha2 = .001
     >>> beta = 10
     >>> restarts = 5
     >>> draws_per_restart = 1
     >>> burnin = 2
-    >>> delay = 1
+    >>> delay = 2
 
     Call without a cluster
-    >>> mp, mp_stds = _api_gibbs(source_df, sink_df, alpha1, alpha2, beta,
-                                 restarts, draws_per_restart, burnin, delay,
-                                 cluster=None)
-    Inspect mp (mixing proportions) and mp_stds (mixing proportion standard
-    deviations).
-    >>> mp.describe
-    >>> mp_stds.describe
+    >>> mp, mps = _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
+                         draws_per_restart, burnin, delay, cluster=None)
 
     Start a cluster and call the function.
     >>> jobs = 4
     >>> subprocess.Popen('ipcluster start -n %s --quiet' % jobs, shell=True)
     >>> time.sleep(25)
     >>> c = Client()
-    >>> _api_gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
-           draws_per_restart, burnin, delay, output_dir_2, cluster=c)
+    >>> mp, mps = _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
+                         draws_per_restart, burnin, delay, cluster=c)
     '''
     with TemporaryDirectory() as tmpdir:
         f = partial(_cli_sink_source_prediction_runner, alpha1=alpha1,
