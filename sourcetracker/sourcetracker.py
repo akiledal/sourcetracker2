@@ -899,7 +899,7 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
     >>> from sourcetracker.sourcetracker import \
         (_gibbs, _cli_sink_source_prediction_runner)
 
-    Prepare some source data. 
+    Prepare some source data.
     >>> otus = np.array(['o%s' % i for i in range(50)])
     >>> source1 = np.random.randint(0, 1000, size=50)
     >>> source2 = np.random.randint(0, 1000, size=50)
@@ -908,7 +908,7 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
                                  index=['source1', 'source2', 'source3'],
                                  columns=otus, dtype=np.float64)
 
-    Prepare some sink data. 
+    Prepare some sink data.
     >>> sink1 = np.ceil(.5*source1+.5*source2)
     >>> sink2 = np.ceil(.5*source2+.5*source3)
     >>> sink3 = np.ceil(.5*source1+.5*source3)
