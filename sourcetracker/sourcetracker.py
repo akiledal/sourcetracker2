@@ -17,6 +17,7 @@ import pandas as pd
 from functools import partial
 from biom.table import Table
 import glob
+from tempfile import TemporaryDirectory
 
 
 def parse_mapping_file(mf_lines):
@@ -232,7 +233,7 @@ class Sampler(object):
             Total number of sequences assigned to each source environment. Not
             set until `generate_environment_assignments` is called.
         """
-        self.sink_data = sink_data
+        self.sink_data = sink_data.astype(np.int64)
         self.sum = self.sink_data.sum()
         self.num_sources = num_sources
         self.num_features = sink_data.shape[0]
@@ -481,12 +482,13 @@ def gibbs_sampler(cp, sink, restarts, draws_per_restart, burnin, delay):
         sink) that will be made before a sample (draw) will be taken. Higher
         values allow more convergence towards the true distribtion before draws
         are taken.
-    delay : int
+    delay : int > 1
         Number passes between each sampling (draw) of the Markov chain. Once
         the burnin passes have been made, a sample will be taken every `delay`
         number of passes. This is also known as 'thinning'. Thinning helps
         reduce the impact of correlation between adjacent states of the Markov
-        chain.
+        chain. Delay must be greater than 1, otherwise draws will never be
+        taken. This is a legacy of the original R code.
 
     Returns
     -------
@@ -857,8 +859,8 @@ def _cli_loo_runner(sample, source_category, alpha1, alpha2, beta, restarts,
     o.close()
 
 
-def _api_gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
-               draws_per_restart, burnin, delay, output_dir, cluster=None):
+def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
+           draws_per_restart, burnin, delay, cluster=None):
     '''Private method for one-line calls of Gibb's sampling.
 
     Notes
@@ -918,13 +920,14 @@ def _api_gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
     >>> burnin = 2
     >>> delay = 1
 
-    Need to create this directory - the function doesn't create it.
-    >>> output_dir_1 = '/Users/wdwvt/Desktop/test_private_gibbs_1/'
-    >>> output_dir_2 = '/Users/wdwvt/Desktop/test_private_gibbs_2/'
-
     Call without a cluster
-    >>> _api_gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
-           draws_per_restart, burnin, delay, output_dir_1, cluster=None)
+    >>> mp, mp_stds = _api_gibbs(source_df, sink_df, alpha1, alpha2, beta,
+                                 restarts, draws_per_restart, burnin, delay,
+                                 cluster=None)
+    Inspect mp (mixing proportions) and mp_stds (mixing proportion standard
+    deviations).
+    >>> mp.describe
+    >>> mp_stds.describe
 
     Start a cluster and call the function.
     >>> jobs = 4
@@ -934,27 +937,28 @@ def _api_gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
     >>> _api_gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
            draws_per_restart, burnin, delay, output_dir_2, cluster=c)
     '''
-    f = partial(_cli_sink_source_prediction_runner, alpha1=alpha1,
-                alpha2=alpha2, beta=beta, restarts=restarts,
-                draws_per_restart=draws_per_restart, burnin=burnin,
-                delay=delay, sources_data=source_df.values,
-                biom_table=sink_df, output_dir=output_dir)
-    if cluster is not None:
-        cluster[:].map(f, sink_df.index, block=True)
-    else:
-        for sink in sink_df.index:
-            f(sink)
+    with TemporaryDirectory() as tmpdir:
+        f = partial(_cli_sink_source_prediction_runner, alpha1=alpha1,
+                    alpha2=alpha2, beta=beta, restarts=restarts,
+                    draws_per_restart=draws_per_restart, burnin=burnin,
+                    delay=delay, sources_data=source_df.values,
+                    biom_table=sink_df, output_dir=tmpdir)
+        if cluster is not None:
+            cluster[:].map(f, sink_df.index, block=True)
+        else:
+            for sink in sink_df.index:
+                f(sink)
 
-    samples = []
-    samples_data = []
-    for sample_fp in glob.glob(os.path.join(output_dir, '*')):
-        samples.append(sample_fp.strip().split('/')[-1].split('.txt')[0])
-        samples_data.append(np.loadtxt(sample_fp, delimiter='\t'))
-    mp, mps = _cli_collate_results(samples, samples_data, source_df.index)
+        samples = []
+        mp_means = []
+        mp_stds = []
+        for sample_fp in glob.glob(os.path.join(tmpdir, '*')):
+            samples.append(sample_fp.strip().split('/')[-1].split('.txt')[0])
+            tmp_arr = np.loadtxt(sample_fp, delimiter='\t')
+            mp_means.append(tmp_arr.mean(0))
+            mp_stds.append(tmp_arr.std(0))
 
-    o = open(os.path.join(output_dir, 'mixing_proportions.txt'), 'w')
-    o.writelines(mp)
-    o.close()
-    o = open(os.path.join(output_dir, 'mixing_proportions_stds.txt'), 'w')
-    o.writelines(mps)
-    o.close()
+    cols = list(source_df.index) + ['Unknown']
+    mp_df = pd.DataFrame(mp_means, index=samples, columns=cols)
+    mp_stds_df = pd.DataFrame(mp_stds, index=samples, columns=cols)
+    return mp_df, mp_stds_df
