@@ -889,6 +889,15 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
     cluster : ipyparallel.client.client.Client or None
         An ipyparallel Client object, e.g. a started cluster.
 
+    Returns
+    -------
+    mp : DataFrame
+        A dataframe containing the mixing proportions (rows are sinks, columns
+            are sources)
+    mps : DataFrame
+        A dataframe containing the mixing proportions standard deviations
+        (rows are sinks, columns are sources)
+
     Examples
     --------
     >>> import pandas as pd
