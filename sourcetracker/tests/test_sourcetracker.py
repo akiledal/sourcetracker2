@@ -646,7 +646,8 @@ class TestGibbsDeterministic(TestCase):
         # Create taxon table like Sampler class would.
         exp_ct = np.zeros((4, 3))
         for i in range(9):
-            exp_ct[expected_et_pairs[1, i], seq_env_assignments[i]] += 1
+            exp_ct[expected_et_pairs[1, i],
+                   np.int(seq_env_assignments[i])] += 1
 
         np.testing.assert_array_almost_equal(obs_mps.squeeze(), exp_mps)
         np.testing.assert_array_equal(obs_ct.squeeze(), exp_ct)

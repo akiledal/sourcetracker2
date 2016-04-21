@@ -13,6 +13,11 @@ import os
 from copy import copy
 import numpy as np
 from skbio.stats._subsample import subsample_counts
+import pandas as pd
+from functools import partial
+from biom.table import Table
+import glob
+from tempfile import TemporaryDirectory
 
 
 def parse_mapping_file(mf_lines):
@@ -228,7 +233,7 @@ class Sampler(object):
             Total number of sequences assigned to each source environment. Not
             set until `generate_environment_assignments` is called.
         """
-        self.sink_data = sink_data
+        self.sink_data = sink_data.astype(np.int64)
         self.sum = self.sink_data.sum()
         self.num_sources = num_sources
         self.num_features = sink_data.shape[0]
@@ -477,12 +482,13 @@ def gibbs_sampler(cp, sink, restarts, draws_per_restart, burnin, delay):
         sink) that will be made before a sample (draw) will be taken. Higher
         values allow more convergence towards the true distribtion before draws
         are taken.
-    delay : int
+    delay : int > 1
         Number passes between each sampling (draw) of the Markov chain. Once
         the burnin passes have been made, a sample will be taken every `delay`
         number of passes. This is also known as 'thinning'. Thinning helps
         reduce the impact of correlation between adjacent states of the Markov
-        chain.
+        chain. Delay must be greater than 1, otherwise draws will never be
+        taken. This is a legacy of the original R code.
 
     Returns
     -------
@@ -795,9 +801,17 @@ def _cli_sink_source_prediction_runner(sample, alpha1, alpha2, beta, restarts,
         Path to the output directory where the results will be saved.
     """
     cp = ConditionalProbability(alpha1, alpha2, beta, sources_data)
-    results = gibbs_sampler(cp, biom_table.data(sample, axis='sample',
-                                                dense=True), restarts,
-                            draws_per_restart, burnin, delay)
+    if isinstance(biom_table, pd.core.frame.DataFrame):
+        sink_data = biom_table.loc[sample].values
+    elif isinstance(biom_table, Table):
+        sink_data = biom_table.data(sample, axis='sample', dense=True)
+    else:
+        raise TypeError('OTU table data is neither Pandas DataFrame nor '
+                        'biom.table.Table. These are the only supported '
+                        'formats.')
+
+    results = gibbs_sampler(cp, sink_data, restarts, draws_per_restart, burnin,
+                            delay)
     lines = _cli_single_sample_formatter(results[0])
     o = open(os.path.join(output_dir, sample + '.txt'), 'w')
     o.writelines(lines)
@@ -843,3 +857,121 @@ def _cli_loo_runner(sample, source_category, alpha1, alpha2, beta, restarts,
     o = open(os.path.join(output_dir, sample + '.txt'), 'w')
     o.writelines(lines)
     o.close()
+
+
+def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
+           draws_per_restart, burnin, delay, cluster=None):
+    '''Private method for one-line calls of Gibb's sampling.
+
+    Notes
+    -----
+    This function exists to allow one-line calls to source/sink prediction.
+    This function currently does not support LOO classification. It is a
+    private method meant to be used only by advanced users who know what they
+    want to automate.
+
+    Parameters that are not described in this function body are described
+    elsewhere in this library (e.g. alpha1, alpha2, etc.)
+
+    Warnings
+    --------
+    This function does _not_ perform rarefaction, the user should perform
+    rarefaction prior to calling this function.
+
+    Parameters
+    ----------
+    source_df : DataFrame
+        A dataframe containing source data (rows are sources, columns are
+        OTUs). The index must be the names of the sources.
+    sink_df : DataFrame
+        A dataframe containing sink data (rows are sinks, columns are OTUs).
+        The index must be the names of the sinks.
+    cluster : ipyparallel.client.client.Client or None
+        An ipyparallel Client object, e.g. a started cluster.
+
+    Returns
+    -------
+    mp : DataFrame
+        A dataframe containing the mixing proportions (rows are sinks, columns
+            are sources)
+    mps : DataFrame
+        A dataframe containing the mixing proportions standard deviations
+        (rows are sinks, columns are sources)
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import numpy as np
+    >>> from ipyparallel import Client
+    >>> import subprocess
+    >>> import time
+    >>> from sourcetracker.sourcetracker import \
+        (_gibbs, _cli_sink_source_prediction_runner)
+
+    Prepare some source data.
+    >>> otus = np.array(['o%s' % i for i in range(50)])
+    >>> source1 = np.random.randint(0, 1000, size=50)
+    >>> source2 = np.random.randint(0, 1000, size=50)
+    >>> source3 = np.random.randint(0, 1000, size=50)
+    >>> source_df = pd.DataFrame([source1, source2, source3],
+                                 index=['source1', 'source2', 'source3'],
+                                 columns=otus, dtype=np.float64)
+
+    Prepare some sink data.
+    >>> sink1 = np.ceil(.5*source1+.5*source2)
+    >>> sink2 = np.ceil(.5*source2+.5*source3)
+    >>> sink3 = np.ceil(.5*source1+.5*source3)
+    >>> sink4 = source1
+    >>> sink5 = source2
+    >>> sink6 = np.random.randint(0, 1000, size=50)
+    >>> sink_df = pd.DataFrame([sink1, sink2, sink3, sink4, sink5, sink6],
+                               index=np.array(['sink%s' % i for i in
+                                               range(1,7)]),
+                               columns=otus, dtype=np.float64)
+
+    Set paramaters
+    >>> alpha1 = .01
+    >>> alpha2 = .001
+    >>> beta = 10
+    >>> restarts = 5
+    >>> draws_per_restart = 1
+    >>> burnin = 2
+    >>> delay = 2
+
+    Call without a cluster
+    >>> mp, mps = _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
+                         draws_per_restart, burnin, delay, cluster=None)
+
+    Start a cluster and call the function.
+    >>> jobs = 4
+    >>> subprocess.Popen('ipcluster start -n %s --quiet' % jobs, shell=True)
+    >>> time.sleep(25)
+    >>> c = Client()
+    >>> mp, mps = _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
+                         draws_per_restart, burnin, delay, cluster=c)
+    '''
+    with TemporaryDirectory() as tmpdir:
+        f = partial(_cli_sink_source_prediction_runner, alpha1=alpha1,
+                    alpha2=alpha2, beta=beta, restarts=restarts,
+                    draws_per_restart=draws_per_restart, burnin=burnin,
+                    delay=delay, sources_data=source_df.values,
+                    biom_table=sink_df, output_dir=tmpdir)
+        if cluster is not None:
+            cluster[:].map(f, sink_df.index, block=True)
+        else:
+            for sink in sink_df.index:
+                f(sink)
+
+        samples = []
+        mp_means = []
+        mp_stds = []
+        for sample_fp in glob.glob(os.path.join(tmpdir, '*')):
+            samples.append(sample_fp.strip().split('/')[-1].split('.txt')[0])
+            tmp_arr = np.loadtxt(sample_fp, delimiter='\t')
+            mp_means.append(tmp_arr.mean(0))
+            mp_stds.append(tmp_arr.std(0))
+
+    cols = list(source_df.index) + ['Unknown']
+    mp_df = pd.DataFrame(mp_means, index=samples, columns=cols)
+    mp_stds_df = pd.DataFrame(mp_stds, index=samples, columns=cols)
+    return mp_df, mp_stds_df
