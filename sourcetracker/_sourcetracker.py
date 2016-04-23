@@ -12,7 +12,7 @@ from __future__ import division
 import os
 from copy import copy
 import numpy as np
-from skbio.stats._subsample import subsample_counts
+from skbio.stats import subsample_counts
 import pandas as pd
 from functools import partial
 from biom.table import Table
@@ -213,23 +213,23 @@ class Sampler(object):
 
         Attributes
         ----------
-        self.sink_data : np.array
+        sink_data : np.array
             Sink data (see Parameters).
-        self.num_sources : int
+        num_sources : int
             Number of source environments.
-        self.num_features : int
+        num_features : int
             Number of features.
-        self.sum : int
+        sum : int
             Total number of sequences in sink sample.
-        self.taxon_sequence : np.array
+        taxon_sequence : np.array
             Bookkeeping array that contains an entry for each sequence so that
             their source assignments can be manipulated. Not set until
             `generate_taxon_sequence` is called.
-        self.seq_env_assignments : np.array
+        seq_env_assignments : np.array
             Vector of integers where the ith entry is the source environment
             index of the ith sequence. Not set until
             `generate_environment_assignments` is called.
-        self.envcounts : np.array
+        envcounts : np.array
             Total number of sequences assigned to each source environment. Not
             set until `generate_environment_assignments` is called.
         """
@@ -312,33 +312,33 @@ class ConditionalProbability(object):
 
         Attributes
         ----------
-        self.m_xivs : np.array
+        m_xivs : np.array
             This is an exact copy of the source_data passed when the function
             is initialized. It is referenced as m_xivs because m_xiv is the
             [v, xi] entry of the source data. In other words, the count of the
             xith feature in the vth environment.
-        self.m_vs : np.array
+        m_vs : np.array
             The row sums of self.m_xivs. This is referenced as m_v in [1]_.
-        self.V : int
+        V : int
             Number of environments (includes both known sources and the
             'unknown' source).
-        self.tau : int
+        tau : int
             Number of features.
-        self.joint_probability : np.array
+        joint_probability : np.array
             The joint conditional distribution. Until the `precalculate` method
             is called, this will be uniformly zero.
-        self.n : int
+        n : int
             Number of sequences in the sink.
-        self.known_p_tv : np.array
+        known_p_tv : np.array
             An array giving the precomputable parts of the probability of
             finding the xith taxon in the vth environment given the known
             sources, aka p_tv in the R implementation. Rows are (known)
             sources, columns are features, shape is (V-1, tau).
-        self.denominator_p_v : float
+        denominator_p_v : float
             The denominator of the calculation for finding the probability of
             a sequence being in the vth environment given the training data
             (source data).
-        self.known_source_cp : np.array
+        known_source_cp : np.array
             All precomputable portions of the conditional probability array.
             Dimensions are the same as self.known_p_tv.
 
@@ -618,7 +618,8 @@ def gibbs_sampler(cp, sink, restarts, draws_per_restart, burnin, delay):
     return mixing_proportions, calculated_assignments
 
 
-def sinks_and_sources(sample_metadata):
+def sinks_and_sources(sample_metadata, column_header="SourceSink",
+                      source_value='source', sink_value='sink'):
     '''Return lists of source and sink samples.
 
     Notes
@@ -630,7 +631,15 @@ def sinks_and_sources(sample_metadata):
     Parameters
     ----------
     sample_metadata : dict
-        Dictionary containing sample metadata. Format is common QIIME format.
+        Dictionary containing sample metadata in QIIME 1 sample metadata
+        mapping file format.
+    column_header : str, optional
+        Column in the mapping file that describes where a sample is a source
+        or a sink.
+    source_value : str, optional
+        Value that indicates a sample is a source.
+    sink_value : str, optional
+        Value that indicates a sample is a sink.
 
     Returns
     -------
@@ -642,9 +651,9 @@ def sinks_and_sources(sample_metadata):
     sink_samples = []
     source_samples = []
     for sample, md in sample_metadata.items():
-        if md['SourceSink'] == 'sink':
+        if md[column_header] == sink_value:
             sink_samples.append(sample)
-        elif md['SourceSink'] == 'source':
+        elif md[column_header] == source_value:
             source_samples.append(sample)
         else:
             pass
@@ -861,17 +870,19 @@ def _cli_loo_runner(sample, source_category, alpha1, alpha2, beta, restarts,
 
 def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
            draws_per_restart, burnin, delay, cluster=None):
-    '''Private method for one-line calls of Gibb's sampling.
+    '''Gibb's sampling API
 
     Notes
     -----
-    This function exists to allow one-line calls to source/sink prediction.
+    This function exists to allow API calls to source/sink prediction.
     This function currently does not support LOO classification. It is a
-    private method meant to be used only by advanced users who know what they
-    want to automate.
+    candidate public API call. You can track progress on this via
+    https://github.com/biota/sourcetracker2/issues/31
 
     Parameters that are not described in this function body are described
-    elsewhere in this library (e.g. alpha1, alpha2, etc.)
+    elsewhere in this library (e.g. alpha1, alpha2, etc.).
+    # TODO: document API fully - users won't be able to access this information
+    # without access to private functionality.
 
     Warnings
     --------
@@ -940,7 +951,7 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
 
     Call without a cluster
     >>> mp, mps = _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
-                         draws_per_restart, burnin, delay, cluster=None)
+                         draws_per_restart, burnin, delay)
 
     Start a cluster and call the function.
     >>> jobs = 4
