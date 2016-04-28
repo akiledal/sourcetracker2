@@ -859,8 +859,9 @@ def _cli_loo_runner(sample, source_category, alpha1, alpha2, beta, restarts,
     o.close()
 
 
-def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
-           draws_per_restart, burnin, delay, cluster=None):
+def _gibbs(source_df, sink_df, alpha1=0.01, alpha2=0.001, beta=10,
+           restarts=2, draws_per_restart=5, burnin=100, delay=500,
+           cluster=None):
     '''Private method for one-line calls of Gibb's sampling.
 
     Notes
@@ -951,6 +952,7 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
                          draws_per_restart, burnin, delay, cluster=c)
     '''
     with TemporaryDirectory() as tmpdir:
+        print("TemporaryDirectory = %s" % tmpdir)
         f = partial(_cli_sink_source_prediction_runner, alpha1=alpha1,
                     alpha2=alpha2, beta=beta, restarts=restarts,
                     draws_per_restart=draws_per_restart, burnin=burnin,
