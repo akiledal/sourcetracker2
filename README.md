@@ -35,7 +35,7 @@ SourceTracker2 is Python 3 software. The easiest way to install it is using Anac
 To install SourceTracker 2 using Anaconda, run the following commands:
 
 ```bash
-conda create -n st2 python=3.5 numpy scipy h5py hdf5
+conda create -n st2 python=3.5 numpy scipy h5py hdf5 matplotlib
 source activate st2
 pip install sourcetracker
 ```
@@ -151,7 +151,7 @@ strategy**
 `sourcetracker2 gibbs -i otu_table.biom -m map.txt -o example4/ --burnin 100`
 
 **Calculate the proportion of each source in each sink, using a sink
-rarefaction depth of 2500**    
+rarefaction depth of 1500**    
 `sourcetracker2 gibbs -i otu_table.biom -m map.txt -o example5/ --sink_rarefaction_depth 2500`
 
 **Calculate the proportion of each source in each sink, using ipyparallel to run in parallel with 5 jobs**  

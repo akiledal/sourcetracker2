@@ -9,7 +9,7 @@
 
 from setuptools import find_packages, setup
 
-__version__ = '2.0.1'
+__version__ = '2.0.1-dev'
 
 classes = """
     Development Status :: 1 - Planning
