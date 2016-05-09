@@ -9,7 +9,7 @@
 
 from setuptools import find_packages, setup
 
-__version__ = '2.0.0-dev'
+__version__ = '2.0.1'
 
 classes = """
     Development Status :: 1 - Planning
@@ -28,7 +28,7 @@ classifiers = [s.strip() for s in classes.split('\n') if s]
 description = "Python implementation of the SourceTracker R package."
 
 setup(
-    name='sourcetracker2',
+    name='sourcetracker',
     version=__version__,
     license='modified BSD',
     description=description,

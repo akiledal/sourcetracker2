@@ -7,5 +7,5 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-__version__ = '2.0.0-dev'
+__version__ = '2.0.1'
 _readme_url = "https://github.com/biota/sourcetracker2/blob/master/README.md"
