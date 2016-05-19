@@ -794,7 +794,7 @@ def _cli_full_output_formatter(table):
     Notes
     -----
     This function is used by the CLI to prepare the OTU table that is created
-    for each sink for writing. 
+    for each sink for writing.
 
     Parameters
     ----------
@@ -1025,6 +1025,6 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
     cols = list(source_df.index) + ['Unknown']
     mp_df = pd.DataFrame(mp_means, index=samples, columns=cols)
     mp_stds_df = pd.DataFrame(mp_stds, index=samples, columns=cols)
-    per_sample_tables = {k: pd.DataFrame(v, index=samples, columns=cols) for v
-                         in per_sample_tables}
+    per_sample_tables = {k: pd.DataFrame(v, index=samples, columns=cols) for
+                         k, v in per_sample_tables.items()}
     return mp_df, mp_stds_df, per_sample_tables
