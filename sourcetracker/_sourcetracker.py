@@ -941,6 +941,10 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
     mps : DataFrame
         A dataframe containing the mixing proportions standard deviations
         (rows are sinks, columns are sources)
+    psts : dict
+        Dictionary containing OTU tables (as dataframes) that are the result of
+        the draws for each sink. Keys are the names of sink samples, values are
+        the OTU tables.
 
     Examples
     --------
@@ -949,10 +953,10 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
     >>> from ipyparallel import Client
     >>> import subprocess
     >>> import time
-    >>> from sourcetracker.sourcetracker import \
+    >>> from sourcetracker._sourcetracker import \
         (_gibbs, _cli_sink_source_prediction_runner)
 
-    Prepare some source data.
+    #Prepare some source data.
     >>> otus = np.array(['o%s' % i for i in range(50)])
     >>> source1 = np.random.randint(0, 1000, size=50)
     >>> source2 = np.random.randint(0, 1000, size=50)
@@ -961,7 +965,7 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
                                  index=['source1', 'source2', 'source3'],
                                  columns=otus, dtype=np.float64)
 
-    Prepare some sink data.
+    #Prepare some sink data.
     >>> sink1 = np.ceil(.5*source1+.5*source2)
     >>> sink2 = np.ceil(.5*source2+.5*source3)
     >>> sink3 = np.ceil(.5*source1+.5*source3)
@@ -973,7 +977,7 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
                                                range(1,7)]),
                                columns=otus, dtype=np.float64)
 
-    Set paramaters
+    #Set paramaters
     >>> alpha1 = .01
     >>> alpha2 = .001
     >>> beta = 10
@@ -982,11 +986,11 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
     >>> burnin = 2
     >>> delay = 2
 
-    Call without a cluster
-    >>> mp, mps = _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
-                         draws_per_restart, burnin, delay)
+    #Call without a cluster
+    >>> mp, mps, psts = _gibbs(source_df, sink_df, alpha1, alpha2, beta,
+                               restarts, draws_per_restart, burnin, delay)
 
-    Start a cluster and call the function.
+    #Start a cluster and call the function.
     >>> jobs = 4
     >>> subprocess.Popen('ipcluster start -n %s --quiet' % jobs, shell=True)
     >>> time.sleep(25)
@@ -1007,24 +1011,25 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
             for sink in sink_df.index:
                 f(sink)
 
-        samples = []
+        sources = list(source_df.index) + ['Unknown']
+
+        sinks = []
         mp_means = []
         mp_stds = []
-        for sample_fp in glob.glob(os.path.join(tmpdir, '*.txt')):
-            samples.append(sample_fp.strip().split('/')[-1].split('.txt')[0])
-            tmp_arr = np.loadtxt(sample_fp, delimiter='\t')
+        for sink_fp in glob.glob(os.path.join(tmpdir, '*.txt')):
+            sinks.append(sink_fp.strip().split('/')[-1].split('.txt')[0])
+            tmp_arr = np.loadtxt(sink_fp, delimiter='\t')
             mp_means.append(tmp_arr.mean(0))
             mp_stds.append(tmp_arr.std(0))
 
         per_sample_tables = {}
-        for sample_fp in glob.glob(os.path.join(tmpdir, '*.fo')):
-            sample = sample_fp.strip().split('/')[-1].split('.fo')[0]
-            table = np.loadtxt(sample_fp, delimiter='\t')
-            per_sample_tables[sample] = table
+        for sink_fp in glob.glob(os.path.join(tmpdir, '*.fo')):
+            sink = sink_fp.strip().split('/')[-1].split('.fo')[0]
+            table = np.loadtxt(sink_fp, delimiter='\t')
+            per_sample_tables[sink] = pd.DataFrame(table, columns=sources,
+                                                   index=source_df.columns)
 
-    cols = list(source_df.index) + ['Unknown']
-    mp_df = pd.DataFrame(mp_means, index=samples, columns=cols)
-    mp_stds_df = pd.DataFrame(mp_stds, index=samples, columns=cols)
-    per_sample_tables = {k: pd.DataFrame(v, index=samples, columns=cols) for
-                         k, v in per_sample_tables.items()}
+    mp_df = pd.DataFrame(mp_means, index=sinks, columns=sources)
+    mp_stds_df = pd.DataFrame(mp_stds, index=sinks, columns=sources)
+
     return mp_df, mp_stds_df, per_sample_tables
