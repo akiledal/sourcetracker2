@@ -788,6 +788,28 @@ def _cli_single_sample_formatter(proportions):
     return '\n'.join(['\t'.join(list(map(str, row))) for row in proportions])
 
 
+def _cli_full_output_formatter(table):
+    """Prepare full OTU data from a Gibb's run on a single sample for writing.
+
+    Notes
+    -----
+    This function is used by the CLI to prepare the OTU table that is created
+    for each sink for writing. 
+
+    Parameters
+    ----------
+    table : np.array
+        Two dimensional float array whose [i, j] entry is the contribution of
+        from source j to feature i for the particular sink.
+
+    Returns
+    -------
+    lines : str
+        String ready to be written containing the `table` data.
+    """
+    return '\n'.join(['\t'.join(list(map(str, row))) for row in table])
+
+
 def _cli_sink_source_prediction_runner(sample, alpha1, alpha2, beta, restarts,
                                        draws_per_restart, burnin, delay,
                                        sources_data, biom_table, output_dir):
@@ -825,7 +847,12 @@ def _cli_sink_source_prediction_runner(sample, alpha1, alpha2, beta, restarts,
     o = open(os.path.join(output_dir, sample + '.txt'), 'w')
     o.writelines(lines)
     o.close()
-    # calculated_assignments.append(results[1])
+    # per sink output is the mean of all the draws
+    ct = sum(results[1])/float(len(results[1]))
+    lines = _cli_full_output_formatter(ct)
+    o = open(os.path.join(output_dir, sample + '.fo'), 'w')
+    o.writelines(lines)
+    o.close()
 
 
 def _cli_loo_runner(sample, source_category, alpha1, alpha2, beta, restarts,
@@ -864,6 +891,12 @@ def _cli_loo_runner(sample, source_category, alpha1, alpha2, beta, restarts,
                             burnin, delay)
     lines = _cli_single_sample_formatter(results[0])
     o = open(os.path.join(output_dir, sample + '.txt'), 'w')
+    o.writelines(lines)
+    o.close()
+    # per sink output is the mean of all the draws
+    ct = sum(results[1])/float(len(results[1]))
+    lines = _cli_full_output_formatter(ct)
+    o = open(os.path.join(output_dir, sample + '.fo'), 'w')
     o.writelines(lines)
     o.close()
 
@@ -958,8 +991,9 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
     >>> subprocess.Popen('ipcluster start -n %s --quiet' % jobs, shell=True)
     >>> time.sleep(25)
     >>> c = Client()
-    >>> mp, mps = _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
-                         draws_per_restart, burnin, delay, cluster=c)
+    >>> mp, mps, psts = _gibbs(source_df, sink_df, alpha1, alpha2, beta,
+                               restarts, draws_per_restart, burnin, delay,
+                               cluster=c)
     '''
     with TemporaryDirectory() as tmpdir:
         f = partial(_cli_sink_source_prediction_runner, alpha1=alpha1,
@@ -976,13 +1010,21 @@ def _gibbs(source_df, sink_df, alpha1, alpha2, beta, restarts,
         samples = []
         mp_means = []
         mp_stds = []
-        for sample_fp in glob.glob(os.path.join(tmpdir, '*')):
+        for sample_fp in glob.glob(os.path.join(tmpdir, '*.txt')):
             samples.append(sample_fp.strip().split('/')[-1].split('.txt')[0])
             tmp_arr = np.loadtxt(sample_fp, delimiter='\t')
             mp_means.append(tmp_arr.mean(0))
             mp_stds.append(tmp_arr.std(0))
 
+        per_sample_tables = {}
+        for sample_fp in glob.glob(os.path.join(tmpdir, '*.fo')):
+            sample = sample_fp.strip().split('/')[-1].split('.fo')[0]
+            table = np.loadtxt(sample_fp, delimiter='\t')
+            per_sample_tables[sample] = table
+
     cols = list(source_df.index) + ['Unknown']
     mp_df = pd.DataFrame(mp_means, index=samples, columns=cols)
     mp_stds_df = pd.DataFrame(mp_stds, index=samples, columns=cols)
-    return mp_df, mp_stds_df
+    per_sample_tables = {k: pd.DataFrame(v, index=samples, columns=cols) for v
+                         in per_sample_tables}
+    return mp_df, mp_stds_df, per_sample_tables
