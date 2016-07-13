@@ -12,11 +12,13 @@ before_install:
 install:
   - conda create --yes -n st2 python=$PYTHON_VERSION nose numpy scipy h5py flake8 scikit-bio=0.4.0
   - source activate st2
+  - pip install coveralls
   - pip install .
 script:
-  - nosetests
+  - nosetests --with-coverage
   - flake8 sourcetracker setup.py
   - sourcetracker2 gibbs --help
-  - cd data/tiny-test/
-  - sourcetracker2 gibbs -i otu_table.biom -m map.txt -o example1/
-  - sourcetracker2 gibbs -i otu_table.biom -m alt-map.txt -o example2/ --source_sink_column source-or-sink --source_column_value src --sink_column_value snk --source_category_column sample-type
+  - sourcetracker2 gibbs -i data/tiny-test/otu_table.biom -m data/tiny-test/map.txt -o example1/
+  - sourcetracker2 gibbs -i data/tiny-test/otu_table.biom -m data/tiny-test/alt-map.txt -o example2/ --source_sink_column source-or-sink --source_column_value src --sink_column_value snk --source_category_column sample-type
+after_success:
+  - coveralls

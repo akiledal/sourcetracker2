@@ -2,6 +2,13 @@
 
 ## 2.0.1-dev (changes since 2.0.1 go here)
 
+ * A candidate public API has been created for both normal sink/source
+   prediction and leave-one-out (LOO) classification. These calls are 
+   ``_gibbs`` and ``_gibbs_loo``.
+ * The per-sink feature assignments are recorded for every run and written to
+   the output directory. They are named as X.contingency.txt where X is the
+   name of a sink.
+
 ## 2.0.1
 
   * Initial alpha release.
