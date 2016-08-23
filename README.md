@@ -1,6 +1,5 @@
-[![Build Status](https://travis-ci.org/biota/sourcetracker2.svg?branch=master)](https://travis-ci.org/biota/sourcetracker2)
-
 # SourceTracker2
+[![Build Status](https://travis-ci.org/biota/sourcetracker2.svg?branch=master)](https://travis-ci.org/biota/sourcetracker2) [![Coverage Status](https://coveralls.io/repos/github/biota/sourcetracker2/badge.svg)](https://coveralls.io/github/biota/sourcetracker2)
 
 SourceTracker was originally described in [Knights et al., 2011](http://www.ncbi.nlm.nih.gov/pubmed/21765408).
 If you use this package, please cite the original SourceTracker paper linked
