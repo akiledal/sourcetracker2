@@ -566,7 +566,7 @@ def gibbs_sampler(sink, cp, restarts, draws_per_restart, burnin, delay):
                     unknown_vector[t] += 1
                     unknown_sum += 1
 
-            if rep > burnin and ((rep-burnin) % delay) == 1:
+            if rep > burnin and ((rep - (burnin + 1)) % delay) == 0:
                 # Update envcounts array with the assigned envs.
                 final_envcounts[drawcount] = envcounts
 
