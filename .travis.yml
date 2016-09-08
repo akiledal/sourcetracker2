@@ -10,7 +10,7 @@ before_install:
   - ./miniconda.sh -b
   - export PATH=/home/travis/miniconda3/bin:$PATH
 install:
-  - conda create --yes -n st2 -c biocore python=$PYTHON_VERSION nose numpy scipy h5py flake8 scikit-bio
+  - conda create --yes -n st2 -c biocore python=$PYTHON_VERSION nose numpy scipy h5py flake8 scikit-bio seaborn
   - source activate st2
   - pip install coveralls
   - pip install .
@@ -22,6 +22,6 @@ script:
   - sourcetracker2 gibbs -i data/tiny-test/otu_table.biom -m data/tiny-test/alt-map.txt -o example2/ --source_sink_column source-or-sink --source_column_value src --sink_column_value snk --source_category_column sample-type --restarts 2 --draws_per_restart 3 --burnin 10 --delay 2
   - sourcetracker2 gibbs -i data/tiny-test/otu_table.biom -m data/tiny-test/map.txt  --loo -o example3/ --restarts 2 --draws_per_restart 3 --burnin 10 --delay 2
   - sourcetracker2 gibbs -i data/tiny-test/otu_table.biom -m data/tiny-test/map.txt  -o example4/ --burnin 25 --restarts 2 --draws_per_restart 3 --delay 2
-  - sourcetracker2 gibbs -i data/tiny-test/otu_table.biom -m data/tiny-test/map.txt  -o example5/ --sink_rarefaction_depth 1700 --source_rarefaction_depth 2000 --restarts 2 --draws_per_restart 3 --burnin 10 --delay 2
+  - sourcetracker2 gibbs -i data/tiny-test/otu_table.biom -m data/tiny-test/map.txt  -o example5/ --sink_rarefaction_depth 1700 --source_rarefaction_depth 1500 --restarts 2 --draws_per_restart 3 --burnin 10 --delay 2
 after_success:
   - coveralls

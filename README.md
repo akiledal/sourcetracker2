@@ -10,8 +10,7 @@ above pending publication of SourceTracker 2.
 There are two ways to access the SourceTracker 2 functionality, via the command
 line (CLI) or the python API. Users seeking to replicate the functionality
 of SourceTracker 1 should use the command line functionality (`sourcetracker2 gibbs`)
-Programmatic users are encouraged to use the API (exposed via `gibbs` and `gibbs_loo`).
-
+Programmatic users are encouraged to use the API (exposed via `gibbs`).
 The help documentation is broken down into sections with separate subsections for
 API and CLI usage.
 
@@ -37,9 +36,9 @@ and feature (OTU) tables we have included [here](https://github.com/biota/source
 
 ## API
 For descriptions of the requirements, please see documentation in the `gibbs`
-function. Very briefly, this function wraps the main workhorse function `_gibbs_sampler`
-and exposes all the parameters necessary to control the behavior of the Gibb's sampling
-as well as the parallel functionality etc.
+function. This function wraps the main workhorse function `gibbs_sampler`
+and exposes all the parameters necessary to control the behavior of the Gibb's
+sampling as well as the parallel functionality etc.
 
 A superficial but important difference from the CLI framework is that, internally,
 SourceTracker 2 represents all tables as sample X feature (samples are rows,
@@ -51,13 +50,12 @@ sample X column format.
 
 ## Command line
 Input feature data should be counts. If non-count data (e.g. the count of
-feature i in sample j was 4.63) is passed, the 'ceiling' of the data will be
-taken. This means that each non-integer count will be rounded up to the nearest
-larger integer.
+feature i in sample j was 4.63) is passed, the data will be rounded to the
+nearest integer.
 
 Rarefaction is performed by default at 1000 seqs/sample for both sinks and
 sources. This is done to prevent samples with more counts from dominating the
-contributions. Rarefaction depth can be set (or entirely disabled) with the ``--source_rarefaction_depth`` and ``--sink_rarefaction_depth`` parameters. Source
+contributions. Rarefaction depth can be set (or entirely disabled) with the ``--source_rarefaction_depth`` and ``--sink_rarefaction_depth`` parameters. Sources
 samples which are collapsed are rarefied after collapse.
 
 Samples which are not present in both the input feature table and the metadata
@@ -68,10 +66,10 @@ their mean value for each feature is computed and used in the analysis. See the
 'Theory' section below for a discussion of this approach.
 
 ## API
-The `gibbs` and `gibbs_loo` functions due minimal preprocessing on the input data.
-The source and sink dataframes are treated as final (no collapsing is done on them),
-i.e. each sink is treated independently. The data is **not** rarified, the tables
-are expected to have the desired row sums.
+The `gibbs` function does not perform collapsing or rarefaction. Validty checks
+are performed on the input to the `gibbs` data. If `sources` and `sinks`
+dataframes are passed, the columns of the dataframes are
+checked and must overlap exactly (identical order).
 
 
 # Output
@@ -88,8 +86,8 @@ output feature table would be 'hand_sample3.feature_table.txt'. These tables rec
 origin source of each sink sequence (count of a feature).
 
 ## API
-The outputs of the `gibbs` and `gibbs_loo` functions are identical to the command line
-outputs, just in dataframe form.
+The outputs of the `gibbs` function are identical to the command line outputs,
+just in dataframe form.
 
 
 # Documentation
@@ -116,7 +114,7 @@ SourceTracker2 is Python 3 software. The easiest way to install it is using Anac
 To install SourceTracker 2 using Anaconda, run the following commands:
 
 ```bash
-conda create -n st2 -c biocore python=3.5 numpy scipy scikit-bio biom-format h5py hdf5
+conda create -n st2 -c biocore python=3.5 numpy scipy scikit-bio biom-format h5py hdf5 seaborn
 source activate st2
 pip install sourcetracker
 ```
@@ -222,7 +220,7 @@ These usage examples expect that you are in the directory
 `sourcetracker2 gibbs -i otu_table.biom -m map.txt -o example1/`
 
 **Calculate the proportion of each source in each sink using an alternate sample metadata mapping file where samples are described differently.**  
-`sourcetracker2 gibbs -i otu_table.biom -m alt-map.txt -o example2/ --source_sink_column source-or-sink --source_column_value src --sink_column_value sink --source_category_column sample-type`
+`sourcetracker2 gibbs -i otu_table.biom -m alt-map.txt -o example2/ --source_sink_column source-or-sink --source_column_value src --sink_column_value snk --source_category_column sample-type`
 
 **Calculate the class label (i.e. 'Env') of each source using a leave one out
 strategy**    
@@ -232,8 +230,8 @@ strategy**
 `sourcetracker2 gibbs -i otu_table.biom -m map.txt -o example4/ --burnin 100`
 
 **Calculate the proportion of each source in each sink, using a sink
-rarefaction depth of 1700 and source rarefaction depth of 2000**    
-`sourcetracker2 gibbs -i otu_table.biom -m map.txt -o example5/ --sink_rarefaction_depth 1700 --source_rarefaction_depth 2000`
+rarefaction depth of 1700 and source rarefaction depth of 1500**    
+`sourcetracker2 gibbs -i otu_table.biom -m map.txt -o example5/ --sink_rarefaction_depth 1700 --source_rarefaction_depth 1500`
 
 **Calculate the proportion of each source in each sink, using ipyparallel to run in parallel with 5 jobs**  
 `sourcetracker2 gibbs -i otu_table.biom -m map.txt -o example6/ --jobs 5`
@@ -246,7 +244,6 @@ rarefaction depth of 1700 and source rarefaction depth of 2000**
 # Miscellaneous
 
 The current implementation of SourceTracker 2 does not contain functionality for
-visualization of results or auto-tuning of the parameters (`alpha1`, `alpha1`,
-etc.). For an example of how you might visualize the data, please see
-this [Juypter notebook](https://github.com/biota/SourceTracker2/blob/master/ipynb/Visualizing%20results.ipynb).
+auto-tuning of the parameters (`alpha1`, `alpha1`, etc.). 
+
 For auto-tuning functionality, please see the original R code.

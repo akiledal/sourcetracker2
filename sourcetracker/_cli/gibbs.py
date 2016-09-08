@@ -19,11 +19,12 @@ from biom import load_table
 from ipyparallel import Client
 
 from sourcetracker._cli import cli
-from sourcetracker._sourcetracker import (biom_to_df, _gibbs, _gibbs_loo,
-                                          intersect_and_sort_samples,
+from sourcetracker._sourcetracker import (gibbs, intersect_and_sort_samples,
                                           get_samples, collapse_source_data,
-                                          subsample_dataframe)
-from sourcetracker._util import parse_sample_metadata
+                                          subsample_dataframe,
+                                          validate_gibbs_input, plot_mpm)
+
+from sourcetracker._util import parse_sample_metadata, biom_to_df
 
 
 @cli.command(name='gibbs')
@@ -47,24 +48,24 @@ from sourcetracker._util import parse_sample_metadata
               help='Number of processes to launch.')
 @click.option('--alpha1', required=False, default=.001,
               type=click.FLOAT, show_default=True,
-              help=('Prior counts of each species in the training '
+              help=('Prior counts of each feature in the training '
                     'environments. Higher values decrease the trust in the '
                     'training environments, and make the source environment '
-                    'distrubitons over taxa smoother. By default, this is '
-                    'set to 0.001, which indicates reasonably high trust in '
-                    'all source environments, even those with few training '
-                    'sequences. This is useful when only a small number of '
-                    'biological samples are available from a source '
-                    'environment. A more conservative value would be 0.01.'))
-@click.option('--alpha2', required=False, default=.001,
+                    'distributions over taxa smoother. A value of 0.001 '
+                    'indicates reasonably high trust in all source '
+                    'environments, even those with few training sequences. A '
+                    'more conservative value would be 0.01.'))
+@click.option('--alpha2', required=False, default=.1,
               type=click.FLOAT, show_default=True,
-              help=('Prior counts of each species in Unknown environment. '
-                    'Higher values make the Unknown environment smoother and '
-                    'less prone to overfitting given a training sample.'))
+              help=('Prior counts of each feature in the `unknown` environment'
+                    ' as a fraction of the counts of the current sink being '
+                    'evaluated. Higher values make the `unknown` environment '
+                    'smoother and less prone to overfitting given a training '
+                    'sample.'))
 @click.option('--beta', required=False, default=10,
-              type=click.INT, show_default=True,
-              help=('Count to be added to each species in each environment, '
-                    'including `unknown`.'))
+              type=click.FLOAT, show_default=True,
+              help=('Count to be added to each feature in each environment, '
+                    'including `unknown` for `p_v` calculations.'))
 @click.option('--source_rarefaction_depth', required=False, default=1000,
               type=click.IntRange(min=0, max=None), show_default=True,
               help=('Depth at which to rarify sources. If 0, no '
@@ -90,14 +91,14 @@ from sourcetracker._util import parse_sample_metadata
                     '(draw) will be taken. Higher values allow more '
                     'convergence towards the true distribtion before draws '
                     'are taken.'))
-@click.option('--delay', required=False, default=10,
+@click.option('--delay', required=False, default=1,
               type=click.INT, show_default=True,
               help=('Number passes between each sampling (draw) of the '
                     'Markov chain. Once the burnin passes have been made, a '
-                    'sample will be taken every `delay` number of passes. '
-                    'This is also known as `thinning`. Thinning helps reduce '
-                    'the impact of correlation between adjacent states of the '
-                    'Markov chain.'))
+                    'sample will be taken, and then taken again every `delay` '
+                    'number of passes. This is also known as `thinning`. '
+                    'Thinning helps reduce the impact of correlation between '
+                    'adjacent states of the Markov chain.'))
 @click.option('--cluster_start_delay', required=False, default=25,
               type=click.INT, show_default=True,
               help=('When using multiple jobs, the script has to start an '
@@ -129,11 +130,11 @@ from sourcetracker._util import parse_sample_metadata
               type=click.STRING, show_default=True,
               help=('Sample metadata column indicating the type of each '
                     'source sample.'))
-def gibbs(table_fp, mapping_fp, output_dir, loo, jobs, alpha1, alpha2, beta,
-          source_rarefaction_depth, sink_rarefaction_depth, restarts,
-          draws_per_restart, burnin, delay, cluster_start_delay,
-          per_sink_feature_assignments, source_sink_column,
-          source_column_value, sink_column_value, source_category_column):
+def gibbs_cli(table_fp, mapping_fp, output_dir, loo, jobs, alpha1, alpha2,
+              beta, source_rarefaction_depth, sink_rarefaction_depth, restarts,
+              draws_per_restart, burnin, delay, cluster_start_delay,
+              per_sink_feature_assignments, source_sink_column,
+              source_column_value, sink_column_value, source_category_column):
     '''Gibb's sampler for Bayesian estimation of microbial sample sources.
 
     For details, see the project README file.
@@ -142,11 +143,12 @@ def gibbs(table_fp, mapping_fp, output_dir, loo, jobs, alpha1, alpha2, beta,
     # failed if so.
     os.mkdir(output_dir)
 
-    # Load the metadata file and feature table. Do a data check on the
-    # feature_table.
+    # Load the metadata file and feature table.
     sample_metadata = parse_sample_metadata(open(mapping_fp, 'U'))
-    _ft = load_table(table_fp)
-    feature_table = biom_to_df(_ft, apply_fractional_value_correction=True)
+    feature_table = biom_to_df(load_table(table_fp))
+
+    # Do high level check on feature data.
+    feature_table = validate_gibbs_input(feature_table)
 
     # Remove samples not shared by both feature and metadata tables and order
     # rows equivalently.
@@ -178,33 +180,36 @@ def gibbs(table_fp, mapping_fp, output_dir, loo, jobs, alpha1, alpha2, beta,
     if source_rarefaction_depth > 0:
         d = (csources.sum(1) >= source_rarefaction_depth)
         if not d.all():
-            print(csources.sum(1))
-            too_shallow = (~d).sum()
+            count_too_shallow = (~d).sum()
             shallowest = csources.sum(1).min()
             raise ValueError(('You requested rarefaction of source samples at '
                               '%s, but there are %s collapsed source samples '
                               'that have less sequences than that. The '
                               'shallowest of these is %s sequences.') %
-                             (source_rarefaction_depth, too_shallow,
+                             (source_rarefaction_depth, count_too_shallow,
                               shallowest))
         else:
             csources = subsample_dataframe(csources, source_rarefaction_depth)
 
-    # Prepare sink data and rarify if requested.
-    sinks = feature_table.loc[sink_samples, :]
-    if sink_rarefaction_depth > 0:
-        d = (sinks.sum(1) >= sink_rarefaction_depth)
-        if not d.all():
-            too_shallow = (~d).sum()
-            shallowest = sinks.sum(1).min()
-            raise ValueError(('You requested rarefaction of sink samples at '
-                              '%s, but there are %s sink samples that have '
-                              'less sequences than that. The shallowest of '
-                              'these is %s sequences.') %
-                             (sink_rarefaction_depth, too_shallow,
-                              shallowest))
-        else:
-            sinks = subsample_dataframe(sinks, sink_rarefaction_depth)
+    # Prepare to rarify sink data if we are not doing LOO. If we are doing loo,
+    # we skip the rarefaction, and set sinks to `None`.
+    if not loo:
+        sinks = feature_table.loc[sink_samples, :]
+        if sink_rarefaction_depth > 0:
+            d = (sinks.sum(1) >= sink_rarefaction_depth)
+            if not d.all():
+                count_too_shallow = (~d).sum()
+                shallowest = sinks.sum(1).min()
+                raise ValueError(('You requested rarefaction of sink samples '
+                                  'at %s, but there are %s sink samples that '
+                                  'have less sequences than that. The '
+                                  'shallowest of these is %s sequences.') %
+                                 (sink_rarefaction_depth, count_too_shallow,
+                                  shallowest))
+            else:
+                sinks = subsample_dataframe(sinks, sink_rarefaction_depth)
+    else:
+        sinks = None
 
     # If we've been asked to do multiple jobs, we need to spin up a cluster.
     if jobs > 1:
@@ -216,16 +221,10 @@ def gibbs(table_fp, mapping_fp, output_dir, loo, jobs, alpha1, alpha2, beta,
         cluster = None
 
     # Run the computations.
-    if not loo:
-        mpm, mps, fas = \
-            _gibbs(csources, sinks, alpha1, alpha2, beta, restarts,
-                   draws_per_restart, burnin, delay, cluster=cluster,
-                   create_feature_tables=per_sink_feature_assignments)
-    else:
-        mpm, mps, fas = \
-            _gibbs_loo(csources, alpha1, alpha2, beta, restarts,
-                       draws_per_restart, burnin, delay, cluster=cluster,
-                       create_feature_tables=per_sink_feature_assignments)
+    mpm, mps, fas = gibbs(csources, sinks, alpha1, alpha2, beta, restarts,
+                          draws_per_restart, burnin, delay, cluster=cluster,
+                          create_feature_tables=per_sink_feature_assignments)
+
     # If we started a cluster, shut it down.
     if jobs > 1:
         cluster.shutdown(hub=True)
@@ -238,3 +237,7 @@ def gibbs(table_fp, mapping_fp, output_dir, loo, jobs, alpha1, alpha2, beta,
         for sink, fa in zip(mpm.index, fas):
             fa.to_csv(os.path.join(output_dir, sink + '.feature_table.txt'),
                       sep='\t')
+
+    # Plot contributions.
+    fig, ax = plot_mpm(mpm)
+    fig.savefig(os.path.join(output_dir, 'mixing_proportions.pdf'), dpi=300)

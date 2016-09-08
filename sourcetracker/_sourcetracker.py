@@ -9,80 +9,99 @@
 # ----------------------------------------------------------------------------
 from __future__ import division
 
+import matplotlib
+matplotlib.use('Agg')  # noqa: E402
+
 import numpy as np
 from skbio.stats import subsample_counts
 import pandas as pd
 from functools import partial
 
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-def check_and_correct_data(feature_table, apply_fractional_value_correction):
-    '''Check and correct problems in the `feature_table`.
+
+def validate_gibbs_input(sources, sinks=None):
+    '''Validate `gibbs` inputs and coerce/round to type `np.int32`.
+
+    Summary
+    -------
+    Checks if data contains `nan` or `null` values, and returns data as
+    type `np.int32`. If both `sources` and `sinks` are passed, columns must
+    match exactly (including order).
 
     Parameters
     ----------
-    feature_table : pd.DataFrame
-        Feature table where rows are features and columns are samples.
-    apply_fractional_value_correction : boolean
-        Fractional counts cause errors in indexing. Uses np.ceil to remove
-        them if True.
+    sources : pd.DataFrame
+        A dataframe containing count data. Must be castable to `np.int32`.
+    sinks : optional, pd.DataFrame or None
+        If not `None` a dataframe containing count data that is castable to
+        `np.int32`.
 
     Returns
     -------
-    feature_table : pd.DataFrame
-        Corrected feature table if changes have been made or original table if
-        no changes occurred. Will automatically be cast as dtype=np.int64
+    pd.Dataframe(s)
 
     Raises
     ------
     ValueError
-        If data contains values that Gibb's sampling cannot handle.
+        If `nan` or `null` values found in inputs.
+    ValueError
+        If any values are smaller than 0.
+    ValueError
+        If any columns of an input dataframe are non-numeric.
+    ValueError
+        If `sources` and `sinks` passed and columns are not identical.
     '''
-    if not np.isreal(feature_table.dtypes).all():
-        raise TypeError('Feature table contains one or more columns which are '
-                        'not numeric type. This is likely due to boolean, '
-                        'string, or other data types being present. Data must '
-                        'contain exclusively real-valued integers or floats.')
+    if sinks is not None:
+        dfs = [sources, sinks]
+    else:
+        dfs = [sources]
 
-    if np.isnan(feature_table.values).any():
-        raise ValueError('One or more values in the feature table is a `nan` '
-                         'or `null` value. Data must contain exclusively real-'
-                         'valued integers or floats.')
+    for df in dfs:
+        # Because of this bug (https://github.com/numpy/numpy/issues/6114)
+        # we can't use e.g. np.isreal(df.dtypes).all(). Instead we use
+        # applymap. Based on:
+        # http://stackoverflow.com/questions/21771133/finding-non-numeric-rows-in-dataframe-in-pandas
+        if not df.applymap(np.isreal).values.all():
+            raise ValueError('A dataframe contains one or more values which '
+                             'are not numeric. Data must be exclusively '
+                             'positive integers.')
+        if np.isnan(df.values).any():
+            raise ValueError('A dataframe has `nan` or `null` values. Data '
+                             'must be exclusively positive integers.')
+        if (df.values < 0).any():
+            raise ValueError('A dataframe has a negative count. Data '
+                             'must be exclusively positive integers.')
 
-    if not (np.ceil(feature_table.values) == feature_table.values).all():
-        if apply_fractional_value_correction is True:
-            return pd.DataFrame(np.ceil(feature_table.values).astype(np.int64),
-                                index=feature_table.index,
-                                columns=feature_table.columns)
-        else:
-            raise ValueError('Non-integer data in the feature table is not '
-                             'being corrected by `check_and_correct_data`. '
-                             'Data leaving this function must be np.int64 '
-                             'type. Either correct the table or pass the '
-                             '`apply_fractional_value_correction` to '
-                             '`check_and_correct_data`.')
-    return feature_table.astype(np.int64)
+    if sinks is not None:
+        if not (sinks.columns == sources.columns).all():
+            raise ValueError('Dataframes do not contain identical (and '
+                             'identically ordered) columns. Columns must '
+                             'match exactly.')
+        return (sources.astype(np.int32, copy=False),
+                sinks.astype(np.int32, copy=False))
+    else:
+        return sources.astype(np.int32, copy=False)
 
 
-def biom_to_df(biom_table, apply_fractional_value_correction=True):
-    '''Turn biom table into dataframe, correcting fractional counts.
-
-    Parameters
-    ----------
-    biom_table : biom.table.Table
-        Biom table.
-    apply_fractional_value_correction : boolean
-        Fractional counts cause errors in indexing. Uses np.ceil to remove
-        them if True.
-
-    Returns
-    -------
-    feature_table : pd.DataFrame
-        Contingency table with rows, columns = samples, features.
-    '''
-    table = pd.DataFrame(biom_table._data.toarray().T,
-                         index=biom_table.ids(axis='sample'),
-                         columns=biom_table.ids(axis='observation'))
-    return check_and_correct_data(table, apply_fractional_value_correction)
+def validate_gibbs_parameters(alpha1, alpha2, beta, restarts,
+                              draws_per_restart, burnin, delay):
+    '''Return `True` if params numerically acceptable. See `gibbs` for docs.'''
+    real_vals = [alpha1, alpha2, beta]
+    int_vals = [restarts, draws_per_restart, burnin, delay]
+    # Check everything is real.
+    if all(np.isreal(val) for val in real_vals + int_vals):
+        # Check that integer values are some type of int.
+        int_check = all(isinstance(val, (int, np.int32, np.int64)) for val in
+                        int_vals)
+        # All integer values must be > 0.
+        pos_int = all(val > 0 for val in int_vals)
+        # All real values must be non-negative.
+        non_neg = all(val >= 0 for val in real_vals)
+        return int_check and pos_int and non_neg and real_vals
+    else:  # Failed to be all numeric values.
+        False
 
 
 def intersect_and_sort_samples(sample_metadata, feature_table):
@@ -152,9 +171,8 @@ def collapse_source_data(sample_metadata, feature_table, source_samples,
 
     Notes
     -----
-    This function calls `check_and_correct_data` before returning the collapsed
-    source table. This is required in case the aggregation function causes
-    nans or non-integer data to be returned.
+    This function calls `validate_gibbs_input` before returning the collapsed
+    source table to ensure aggregation has not introduced non-integer values.
 
     The order of the collapsed sources is determined by the sort order of their
     names. For instance, in the example below, .4 comes before 3.0 so the
@@ -198,8 +216,7 @@ def collapse_source_data(sample_metadata, feature_table, source_samples,
     sources = sample_metadata.loc[source_samples, :]
     table = feature_table.loc[sources.index, :].copy()
     table['collapse_col'] = sources[category]
-    return check_and_correct_data(table.groupby('collapse_col').agg(method),
-                                  True)
+    return validate_gibbs_input(table.groupby('collapse_col').agg(method))
 
 
 def subsample_dataframe(df, depth):
@@ -253,14 +270,7 @@ class ConditionalProbability(object):
         Paramaters
         ----------
         alpha1 : float
-            Prior counts of each feature in the training environments. Higher
-            values decrease the trust in the training environments, and make
-            the source environment distributions over taxa smoother. By
-            default, this is set to 0.001, which indicates reasonably high
-            trust in all source environments, even those with few training
-            sequences. This is useful when only a small number of biological
-            samples are available from a source environment. A more
-            conservative value would be 0.01.
+            Prior counts of each feature in the training environments.
         alpha2 : float
             Prior counts of each feature in the Unknown environment. Higher
             values make the Unknown environment smoother and less prone to
@@ -404,7 +414,7 @@ class ConditionalProbability(object):
         m_V : float
             Sum of the training sequences currently assigned to the unknown
             environment (over all taxa).
-        n_vnoti : float
+        n_vnoti : np.array
             Counts of the test sequences in each environment at the current
             iteration of the sampler.
 
@@ -442,17 +452,16 @@ def gibbs_sampler(sink, cp, restarts, draws_per_restart, burnin, delay):
         Number of times to sample the state of the Markov chain for each
         independent chain grown.
     burnin : int
-        Number of passes (withdarawal and reassignment of every sequence in the
+        Number of passes (withdrawal and reassignment of every sequence in the
         sink) that will be made before a sample (draw) will be taken. Higher
-        values allow more convergence towards the true distribtion before draws
-        are taken.
-    delay : int > 1
+        values allow more convergence towards the true distribution before
+        draws are taken.
+    delay : int >= 1
         Number passes between each sampling (draw) of the Markov chain. Once
-        the burnin passes have been made, a sample will be taken every `delay`
-        number of passes. This is also known as 'thinning'. Thinning helps
-        reduce the impact of correlation between adjacent states of the Markov
-        chain. Delay must be greater than 1, otherwise draws will never be
-        taken. This is a legacy of the original R code.
+        the burnin passes have been made, a sample will be taken, and
+        additional samples will be drawn every `delay` number of passes. This
+        is also known as 'thinning'. Thinning helps reduce the impact of
+        correlation between adjacent states of the Markov chain.
 
     Returns
     -------
@@ -581,83 +590,54 @@ def gibbs_sampler(sink, cp, restarts, draws_per_restart, burnin, delay):
     return (final_envcounts, final_env_assignments, final_taxon_assignments)
 
 
-def _gibbs_loo(sources, alpha1, alpha2, beta, restarts, draws_per_restart,
-               burnin, delay, cluster=None, create_feature_tables=True):
-    '''Gibb's LOO sampling API - see _gibbs for documentation.
-
-    Notes
-    -----
-    In leave-one-out (LOO) classification, each source is individually
-    considered as a sink, so there is no need to pass a sinks dataframe.
-    '''
-    def f(cp_and_sink):
-        # The import is here to ensure that the engines of the cluster can
-        # access the gibbs_sampler function.
-        from sourcetracker._sourcetracker import gibbs_sampler
-        return gibbs_sampler(cp_and_sink[1], cp_and_sink[0], restarts,
-                             draws_per_restart, burnin, delay)
-    cps_and_sinks = []
-    for source in sources.index:
-        _sources = sources.select(lambda x: x != source)
-        cp = ConditionalProbability(alpha1, alpha2, beta, _sources.values)
-        sink = sources.loc[source, :].values
-        cps_and_sinks.append((cp, sink))
-
-    if cluster is not None:
-        results = cluster[:].map(f, cps_and_sinks, block=True)
-    else:
-        results = list(map(f, cps_and_sinks))
-    mpm, mps, fas = collate_gibbs_results([i[0] for i in results],
-                                          [i[1] for i in results],
-                                          [i[2] for i in results],
-                                          sources.index, sources.index,
-                                          sources.columns,
-                                          create_feature_tables, loo=True)
-    return mpm, mps, fas
-
-
-def _gibbs(sources, sinks, alpha1, alpha2, beta, restarts, draws_per_restart,
-           burnin, delay, cluster=None, create_feature_tables=True):
+def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
+          draws_per_restart=1, burnin=100, delay=1, cluster=None,
+          create_feature_tables=True):
     '''Gibb's sampling API.
 
     Notes
     -----
-    This function exists to allow API calls to source/sink prediction. It is a
-    candidate public API call. You can track progress on this via
-    https://github.com/biota/sourcetracker2/issues/31
+    This function exists to allow API calls to source/sink prediction and
+    leave-one-out (LOO) source prediction.
+
+    Input validation is done on the sources and sinks (if not None). They must
+    be dataframes with integerial data (or castable to such). If both
+    sources and sinks are provided, their columns must agree exactly.
+
+    Input validation is done on the Gibb's parameters, to make sure they are
+    numerically acceptable (all must be non-negative, some must be positive
+    integers - see below).
 
     Warnings
     --------
     This function does _not_ perform rarefaction, the user should perform
-    rarefaction prior to calling this function. This function also does not
-    perform checks on the data (i.e. using `check_and_correct_data`, or
-    `intersect_and_sort_samples`). Finally, this function does not collapse
-    sources or sinks, it expects each row of the `sources` dataframe to
-    represent a unique source, and each row of the `sinks` dataframe to
-    represent a unique sink.
+    rarefaction prior to calling this function.
+
+    This function does not collapse sources or sinks, it expects each row of
+    the `sources` dataframe to represent a unique source, and each row of the
+    `sinks` dataframe to represent a unique sink.
 
     Parameters
     ----------
     sources : DataFrame
         A dataframe containing source data (rows are sources, columns are
         features). The index must be the names of the sources.
-    sinks : DataFrame
+    sinks : DataFrame or None
         A dataframe containing sink data (rows are sinks, columns are
-        features). The index must be the names of the sinks.
+        features). The index must be the names of the sinks. If `None`,
+        leave-one-out (LOO) prediction will be done.
     alpha1 : float
         Prior counts of each feature in the training environments. Higher
         values decrease the trust in the training environments, and make
-        the source environment distributions over taxa smoother. By
-        default, this is set to 0.001, which indicates reasonably high
-        trust in all source environments, even those with few training
-        sequences. This is useful when only a small number of biological
-        samples are available from a source environment. A more
-        conservative value would be 0.01.
+        the source environment distributions over taxa smoother. A value of
+        0.001 indicates reasonably high trust in all source environments, even
+        those with few training sequences. A more conservative value would be
+        0.01.
     alpha2 : float
         Prior counts of each feature in the Unknown environment. Higher
         values make the Unknown environment smoother and less prone to
         overfitting given a training sample.
-    beta : float
+    beta : int
         Number of prior counts of test sequences from each feature in each
         environment.
     restarts : int
@@ -672,13 +652,12 @@ def _gibbs(sources, sinks, alpha1, alpha2, beta, restarts, draws_per_restart,
         sink) that will be made before a sample (draw) will be taken. Higher
         values allow more convergence towards the true distribtion before draws
         are taken.
-    delay : int > 1
+    delay : int >= 1
         Number passes between each sampling (draw) of the Markov chain. Once
-        the burnin passes have been made, a sample will be taken every `delay`
-        number of passes. This is also known as 'thinning'. Thinning helps
-        reduce the impact of correlation between adjacent states of the Markov
-        chain. Delay must be greater than 1, otherwise draws will never be
-        taken. This is a legacy of the original R code.
+        the burnin passes have been made, a sample will be taken, and
+        additional samples will be drawn every `delay` number of passes. This
+        is also known as 'thinning'. Thinning helps reduce the impact of
+        correlation between adjacent states of the Markov chain.
     cluster : ipyparallel.client.client.Client or None
         An ipyparallel Client object, e.g. a started cluster.
     create_feature_tables : boolean
@@ -703,12 +682,13 @@ def _gibbs(sources, sinks, alpha1, alpha2, beta, restarts, draws_per_restart,
 
     Examples
     --------
+    # An example of using the normal prediction.
     >>> import pandas as pd
     >>> import numpy as np
     >>> from ipyparallel import Client
     >>> import subprocess
     >>> import time
-    >>> from sourcetracker._sourcetracker import _gibbs
+    >>> from sourcetracker import gibbs
 
     # Prepare some source data.
     >>> otus = np.array(['o%s' % i for i in range(50)])
@@ -717,7 +697,7 @@ def _gibbs(sources, sinks, alpha1, alpha2, beta, restarts, draws_per_restart,
     >>> source3 = np.random.randint(0, 1000, size=50)
     >>> source_df = pd.DataFrame([source1, source2, source3],
                                  index=['source1', 'source2', 'source3'],
-                                 columns=otus, dtype=np.float64)
+                                 columns=otus, dtype=np.int32)
 
     # Prepare some sink data.
     >>> sink1 = np.ceil(.5*source1+.5*source2)
@@ -729,7 +709,7 @@ def _gibbs(sources, sinks, alpha1, alpha2, beta, restarts, draws_per_restart,
     >>> sink_df = pd.DataFrame([sink1, sink2, sink3, sink4, sink5, sink6],
                                index=np.array(['sink%s' % i for i in
                                                range(1,7)]),
-                               columns=otus, dtype=np.float64)
+                               columns=otus, dtype=np.int32)
 
     # Set paramaters
     >>> alpha1 = .01
@@ -741,34 +721,74 @@ def _gibbs(sources, sinks, alpha1, alpha2, beta, restarts, draws_per_restart,
     >>> delay = 2
 
     # Call without a cluster
-    >>> mpm, mps, fas = _gibbs(source_df, sink_df, alpha1, alpha2, beta,
-                               restarts, draws_per_restart, burnin, delay,
-                               cluster=None, create_feature_tables=True)
+    >>> mpm, mps, fas = gibbs(source_df, sink_df, alpha1, alpha2, beta,
+                              restarts, draws_per_restart, burnin, delay,
+                              cluster=None, create_feature_tables=True)
 
     # Start a cluster and call the function
     >>> jobs = 4
     >>> subprocess.Popen('ipcluster start -n %s --quiet' % jobs, shell=True)
     >>> time.sleep(25)
     >>> c = Client()
-    >>> mpm, mps, fas = _gibbs(source_df, sink_df, alpha1, alpha2, beta,
-                               restarts, draws_per_restart, burnin, delay,
-                               cluster=c, create_feature_tables=True)
+    >>> mpm, mps, fas = gibbs(source_df, sink_df, alpha1, alpha2, beta,
+                              restarts, draws_per_restart, burnin, delay,
+                              cluster=c, create_feature_tables=True)
+
+    # LOO prediction.
+    >>> mpm, mps, fas = gibbs(source_df, sinks=None, alpha1, alpha2, beta,
+                              restarts, draws_per_restart, burnin, delay,
+                              cluster=c, create_feature_tables=True)
     '''
-    cp = ConditionalProbability(alpha1, alpha2, beta, sources.values)
-    f = partial(gibbs_sampler, cp=cp, restarts=restarts,
-                draws_per_restart=draws_per_restart, burnin=burnin,
-                delay=delay)
-    if cluster is not None:
-        results = cluster[:].map(f, sinks.values, block=True)
+    if not validate_gibbs_parameters(alpha1, alpha2, beta, restarts,
+                                     draws_per_restart, burnin, delay):
+        raise ValueError('The supplied Gibbs parameters are not acceptable. '
+                         'Please review the `gibbs` doc string or call the '
+                         'help function in the CLI.')
+
+    # Run LOO predictions on `sources`.
+    if sinks is None:
+        def f(cp_and_sink):
+            # The import is here to ensure that the engines of the cluster can
+            # access the gibbs_sampler function.
+            from sourcetracker._sourcetracker import gibbs_sampler
+            return gibbs_sampler(cp_and_sink[1], cp_and_sink[0], restarts,
+                                 draws_per_restart, burnin, delay)
+        cps_and_sinks = []
+        for source in sources.index:
+            _sources = sources.select(lambda x: x != source)
+            cp = ConditionalProbability(alpha1, alpha2, beta, _sources.values)
+            sink = sources.loc[source, :].values
+            cps_and_sinks.append((cp, sink))
+
+        if cluster is not None:
+            results = cluster[:].map(f, cps_and_sinks, block=True)
+        else:
+            results = list(map(f, cps_and_sinks))
+        mpm, mps, fas = collate_gibbs_results([i[0] for i in results],
+                                              [i[1] for i in results],
+                                              [i[2] for i in results],
+                                              sources.index, sources.index,
+                                              sources.columns,
+                                              create_feature_tables, loo=True)
+        return mpm, mps, fas
+
+    # Run normal prediction on `sinks`.
     else:
-        results = list(map(f, sinks.values))
-    mpm, mps, fas = collate_gibbs_results([i[0] for i in results],
-                                          [i[1] for i in results],
-                                          [i[2] for i in results],
-                                          sinks.index, sources.index,
-                                          sources.columns,
-                                          create_feature_tables, loo=False)
-    return mpm, mps, fas
+        cp = ConditionalProbability(alpha1, alpha2, beta, sources.values)
+        f = partial(gibbs_sampler, cp=cp, restarts=restarts,
+                    draws_per_restart=draws_per_restart, burnin=burnin,
+                    delay=delay)
+        if cluster is not None:
+            results = cluster[:].map(f, sinks.values, block=True)
+        else:
+            results = list(map(f, sinks.values))
+        mpm, mps, fas = collate_gibbs_results([i[0] for i in results],
+                                              [i[1] for i in results],
+                                              [i[2] for i in results],
+                                              sinks.index, sources.index,
+                                              sources.columns,
+                                              create_feature_tables, loo=False)
+        return mpm, mps, fas
 
 
 def cumulative_proportions(all_envcounts, sink_ids, source_ids):
@@ -975,3 +995,16 @@ def collate_gibbs_results(all_envcounts, all_env_assignments,
             fts = None
 
     return props, props_stds, fts
+
+
+def plot_mpm(mpm, cm=plt.cm.viridis, xlabel='Sources', ylabel='Sinks',
+             title='Mixing Proportions (as Fraction)'):
+    '''Make a basic mixing proportion histogram.'''
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    sns.heatmap(mpm, vmin=0, vmax=1.0, cmap=cm, annot=True, linewidths=.5,
+                ax=ax)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    return fig, ax
