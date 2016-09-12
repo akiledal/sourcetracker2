@@ -745,6 +745,13 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
                          'Please review the `gibbs` doc string or call the '
                          'help function in the CLI.')
 
+    # Validate the input source and sink data. Error if the data do not meet
+    # the critical assumptions or cannot be cast to the proper type.
+    if sinks is not None:
+        sources, sinks = validate_gibbs_input(sources, sinks)
+    else:
+        sources = validate_gibbs_input(sources)
+
     # Run LOO predictions on `sources`.
     if sinks is None:
         def f(cp_and_sink):

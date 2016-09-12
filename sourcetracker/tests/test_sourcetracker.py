@@ -1008,6 +1008,41 @@ class TestGibbs(TestCase):
                                index=['source1', 'source2'], columns=features)
         self.assertRaises(ValueError, gibbs, sources, alpha1=-.3)
 
+    def test_gibbs_data_bad(self):
+        # input has nans.
+        features = ['o1', 'o2', 'o3', 'o4', 'o5', 'o6']
+        source1 = np.array([10, 10, 10, 0, 0, np.nan])
+        source2 = np.array([0, 0, 0, 10, 10, 10])
+        sources = pd.DataFrame(np.vstack((source1, source2)),
+                               index=['source1', 'source2'], columns=features)
+        self.assertRaises(ValueError, gibbs, sources)
+
+        # features do not overlap.
+        features = ['o1', 'o2', 'o3', 'o4', 'o5', 'o6']
+        source1 = np.array([10, 10, 10, 0, 0, 0])
+        source2 = np.array([0, 0, 0, 10, 10, 10])
+        sources = pd.DataFrame(np.vstack((source1, source2)),
+                               index=['source1', 'source2'], columns=features)
+        features2 = ['o1', 'asdsadO2', 'o3', 'o4', 'o5', 'o6']
+        sink1 = np.array([10, 10, 10, 0, 0, 0])
+        sink2 = np.array([0, 0, 0, 10, 10, 10])
+        sinks = pd.DataFrame(np.vstack((sink1, sink2)),
+                             index=['sink1', 'sink2'], columns=features2)
+        self.assertRaises(ValueError, gibbs, sources, sinks)
+
+        # there are negative counts.
+        sources.iloc[0, 2] = -10
+        self.assertRaises(ValueError, gibbs, sources)
+
+        # non-real data in input dataframe.
+        # copied from test of `validate_gibbs_input`.
+        data = np.random.randint(0, 10, size=20).reshape(5, 4)
+        sources = pd.DataFrame(data.astype(np.int32),
+                               index=['f%s' % i for i in range(5)],
+                               columns=['s%s' % i for i in range(4)])
+        sources.iloc[2, 2] = '3.a'
+        self.assertRaises(ValueError, validate_gibbs_input, sources)
+
     def test_consistency_when_gibbs_seeded(self):
         '''Test consistency of `gibbs` (without LOO) from run to run.
 
