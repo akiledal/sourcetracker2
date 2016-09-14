@@ -482,7 +482,6 @@ def gibbs_sampler(sink, cp, restarts, draws_per_restart, burnin, delay):
     # Basic bookkeeping information we will use throughout the function.
     num_sources = cp.V
     num_features = cp.tau
-    source_indices = np.arange(num_sources)
     sink = sink.astype(np.int32)
     sink_sum = sink.sum()
 
@@ -558,15 +557,17 @@ def gibbs_sampler(sink, cp, restarts, draws_per_restart, burnin, delay):
                     unknown_sum -= 1
 
                 # Calculate the new joint probability vector based on the
-                # removal of the ith sequence. Scale this probability vector
-                # for use by np.random.choice.
+                # removal of the ith sequence.
                 jp = cp.calculate_cp_slice(t, unknown_vector[t], unknown_sum,
                                            envcounts)
 
                 # Reassign the sequence to a new source environment and
                 # update counts for each environment and the unknown source
                 # if necessary.
-                new_e_idx = np.random.choice(source_indices, p=jp / jp.sum())
+                # Note: np.random.choice is ~4x slower than the current cumsum,
+                # searchsorted, and uniform calls.
+                cs = (jp / jp.sum()).cumsum()
+                new_e_idx = np.searchsorted(cs, np.random.uniform(0, 1))
 
                 seq_env_assignments[seq_index] = new_e_idx
                 envcounts[new_e_idx] += 1
