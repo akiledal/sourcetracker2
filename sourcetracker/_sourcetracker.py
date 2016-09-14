@@ -557,17 +557,25 @@ def gibbs_sampler(sink, cp, restarts, draws_per_restart, burnin, delay):
                     unknown_sum -= 1
 
                 # Calculate the new joint probability vector based on the
-                # removal of the ith sequence.
+                # removal of the ith sequence. Reassign the sequence to a new
+                # source environment and update counts for each environment and
+                # the unknown source if necessary.
+                # This is the fastest way I've currently found to draw from
+                # `jp`. By stacking (cumsum) the probability of `jp`, we can
+                # draw x from uniform variable in [0, total sum), and then find
+                # which interval that value lies in with searchsorted. Visual
+                # representation below
+                #          e1    e2  e3 e4  e5     unk
+                # jp:    |     |    |  |  |    |          |
+                # x:                          x
+                # new_e_idx == 4 (zero indexed)
+                # This is in contrast to the more intuitive, but much slower
+                # call it replaced:
+                # np.random.choice(num_sources, jp/jp.sum())
                 jp = cp.calculate_cp_slice(t, unknown_vector[t], unknown_sum,
                                            envcounts)
-
-                # Reassign the sequence to a new source environment and
-                # update counts for each environment and the unknown source
-                # if necessary.
-                # Note: np.random.choice is ~4x slower than the current cumsum,
-                # searchsorted, and uniform calls.
-                cs = (jp / jp.sum()).cumsum()
-                new_e_idx = np.searchsorted(cs, np.random.uniform(0, 1))
+                cs = jp.cumsum()
+                new_e_idx = np.searchsorted(cs, np.random.uniform(0, cs[-1]))
 
                 seq_env_assignments[seq_index] = new_e_idx
                 envcounts[new_e_idx] += 1
