@@ -1024,3 +1024,67 @@ def plot_heatmap(mpm, cm=plt.cm.viridis, xlabel='Sources', ylabel='Sinks',
     ax.set_ylabel(ylabel)
     ax.set_title(title)
     return fig, ax
+
+################################################################################
+# Alternative Mixing Proportion Methods
+################################################################################
+def method5(sources, sinks):
+    '''
+    Calculates percent probability of each source contributing to the sink 
+    based solely on likelihood of seeing a given feature in a given source 
+    environment.
+    
+    Parameters
+    ----------
+    sources : pd.DataFrame
+        DataFrame of sources x features (rows x columns)
+    sinks : pd.DataFrame
+        DataFrame of sinks x features (rows x columns)
+        
+    Returns
+    -------
+    results : pd.DataFrame
+        Dataframe of sinks x sources (rows x columns) of the contribution of 
+        each source to each sink
+        
+    Examples:
+    ---------
+    # Method5 works by assigning each sink's sequence counts to a source
+    # based solely on the probability of seeing that feature in a source.
+    # source table is source x features (rows x columns)
+    sources = [[1, 2, 3, 4],
+               [4, 2, 1, 3]]
+    sinks =    [3, 3, 3, 1]
+    
+    # Calculate probability of seeing each feature in a source by dividing
+    # each source count by the total sum of that source
+    sources_scaled = [[0.1, 0.2, 0.3, 0.4],
+                      [0.4, 0.2, 0.1, 0.3]]
+    
+    # Multiple the sink's sequence counts by the sources_scaled probability
+    sources_scaled_counts = [[0.3, 0.6, 0.9, 0.4],
+                             [1.2, 0.6, 0.3, 0.3]]
+    
+    # sum up the total sequence contributions across all sources, and then 
+    # recalculate how much sequence contribution each source provided
+    source_contributions = [0.478261, 0.512739]
+    '''
+    
+    # Calculate probability of seeing each feature in a given sources
+    sources_scaled = sources.div(sources.sum(axis=1), axis=0)
+    
+    # Create results container
+    results = pd.DataFrame(np.zeros((len(sources.index), len(sinks.index))),
+                                  index=[sinks.index], columns=[sources.index])
+    
+    for sink in sinks.iterrows():
+        
+        # Multiply sinks counts by prob of seeing that feature in each source
+        sources_scaled_counts = sources_scaled * sink[1].values
+        
+        # Add up a sources seq count contributions, and rescale
+        table_sum = sources_scaled_counts.sum().sum()
+        source_contributions = sources_scaled_counts.sum(axis=1) / table_sum
+        results.loc[sink[0]] = source_contributions
+    
+    return results
