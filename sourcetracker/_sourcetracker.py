@@ -1069,15 +1069,17 @@ def method5(sources, sinks):
     # recalculate how much sequence contribution each source provided
     source_contributions = [0.478261, 0.512739]
     '''
+    # check input DataFrames
+    sources_ok, sinks_ok = validate_gibbs_input(sources, sinks)
     
     # Calculate probability of seeing each feature in a given sources
-    sources_scaled = sources.div(sources.sum(axis=1), axis=0)
+    sources_scaled = sources_ok.div(sources.sum(axis=1), axis=0)
     
     # Create results container
     results = pd.DataFrame(np.zeros((len(sources.index), len(sinks.index))),
                                   index=[sinks.index], columns=[sources.index])
     
-    for sink in sinks.iterrows():
+    for sink in sinks_ok.iterrows():
         
         # Multiply sinks counts by prob of seeing that feature in each source
         sources_scaled_counts = sources_scaled * sink[1].values
