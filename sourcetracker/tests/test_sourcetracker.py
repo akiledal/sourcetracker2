@@ -399,6 +399,20 @@ class TestSubsampleDataframe(TestCase):
         obs = subsample_dataframe(ftable, n)
         self.assertTrue((obs.sum(axis=1) == n).all())
 
+    def test_subsample_with_replacement(self):
+        # Testing this function deterministically is hard because cython is
+        # generating the PRNG calls. We'll settle for ensuring that the sums
+        # are correct.
+        fdata = np.array([[10,  50,  10,  70],
+                          [0,  25,  10,   5],
+                          [0,  25,  10,   5],
+                          [100,   0,  10,   5]])
+        ftable = pd.DataFrame(fdata, index=['s1', 's2', 's3', 's4'],
+                              columns=map(str, np.arange(4)))
+        n = 30
+        obs = subsample_dataframe(ftable, n, replace=True)
+        self.assertTrue((obs.sum(axis=1) == n).all())
+
     def test_shape_doesnt_change(self):
         # Test that when features are removed by subsampling, the shape of the
         # table does not change. Although rarifaction is stochastic, the

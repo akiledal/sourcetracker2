@@ -219,7 +219,7 @@ def collapse_source_data(sample_metadata, feature_table, source_samples,
     return validate_gibbs_input(table.groupby('collapse_col').agg(method))
 
 
-def subsample_dataframe(df, depth):
+def subsample_dataframe(df, depth, replace=False):
     '''Subsample (rarify) input dataframe without replacement.
 
     Parameters
@@ -228,13 +228,16 @@ def subsample_dataframe(df, depth):
         Feature table where rows are features and columns are samples.
     depth : int
         Number of sequences to choose per sample.
+    replace : bool, optional
+        If ``True``, subsample with replacement. If ``False`` (the default),
+        subsample without replacement.
 
     Returns
     -------
     pd.DataFrame
         Subsampled dataframe.
     '''
-    f = partial(subsample_counts, n=depth, replace=False)
+    f = partial(subsample_counts, n=depth, replace=replace)
     return df.apply(f, axis=1, reduce=False, raw=False)
 
 
