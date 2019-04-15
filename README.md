@@ -100,12 +100,11 @@ Currently, parallelization across a single machine is
 supported for both estimation of source proportions and leave-one-out source
 class prediction. The speedup from parallelization should be approximately a
 factor of `jobs` that are passed. For instance, passing `--jobs 4` will
-decrease runtime approximately 4X (less due to overhead). The package
-`ipyparallel` is used to enable parallelization. Note that you can only specify
-as many jobs as you have sink samples. For instance, passing 10 jobs with only 5
-sink samples will not result in the code executing any faster than passing 5 jobs,
-since there is a 1 sink per job limit. Said another way, a single sink sample
-cannot be split up into multiple jobs.
+decrease runtime approximately 4X (less due to overhead). Note that you can
+only specify as many jobs as you have sink samples. For instance, passing 10
+jobs with only 5 sink samples will not result in the code executing any faster
+than passing 5 jobs, since there is a 1 sink per job limit. Said another way,
+a single sink sample cannot be split up into multiple jobs.
 
 # Installation
 
