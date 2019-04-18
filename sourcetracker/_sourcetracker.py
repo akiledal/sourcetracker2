@@ -761,6 +761,13 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
     else:
         sources = validate_gibbs_input(sources)
 
+    kwargs = {
+            'restarts': restarts,
+            'draws_per_restart': draws_per_restart,
+            'burnin': burnin,
+            'delay': delay
+            }
+
     # Run LOO predictions on `sources`.
     if sinks is None:
         cps_and_sinks = []
@@ -770,35 +777,28 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
             sink = sources.loc[source, :].values
             cps_and_sinks.append((cp, sink))
 
-        f = partial(_gibbs_loo, restarts=restarts,
-                    draws_per_restart=draws_per_restart, burnin=burnin,
-                    delay=delay)
+        f = partial(_gibbs_loo, **kwargs)
 
-        with Pool(1) as p:
-            results = p.map(f, cps_and_sinks)
-
+        args = cps_and_sinks
         sinks = sources
         loo = True
 
     # Run normal prediction on `sinks`.
     else:
         cp = ConditionalProbability(alpha1, alpha2, beta, sources.values)
-        f = partial(gibbs_sampler, cp=cp, restarts=restarts,
-                    draws_per_restart=draws_per_restart, burnin=burnin,
-                    delay=delay)
-        with Pool(jobs) as p:
-            results = p.map(f, sinks.values)
-
+        f = partial(gibbs_sampler, cp=cp, **kwargs)
+        args = sinks.values
         loo = False
 
-    mpm, mps, fas = collate_gibbs_results([i[0] for i in results],
-                                          [i[1] for i in results],
-                                          [i[2] for i in results],
-                                          sinks.index, sources.index,
-                                          sources.columns,
-                                          create_feature_tables, loo=loo)
+    with Pool(jobs) as p:
+        results = p.map(f, args)
 
-    return mpm, mps, fas
+    return collate_gibbs_results([i[0] for i in results],
+                                 [i[1] for i in results],
+                                 [i[2] for i in results],
+                                 sinks.index, sources.index,
+                                 sources.columns,
+                                 create_feature_tables, loo=loo)
 
 
 def cumulative_proportions(all_envcounts, sink_ids, source_ids):

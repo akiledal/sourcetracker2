@@ -1085,7 +1085,7 @@ class TestGibbs(TestCase):
         np.random.seed(1042)
         mpm, mps, fts = gibbs(sources, sinks, alpha1=.001, alpha2=.01, beta=1,
                               restarts=3, draws_per_restart=5, burnin=50,
-                              delay=4, create_feature_tables=True)
+                              jobs=2, delay=4, create_feature_tables=True)
 
         possible_sources = ['source1', 'source2', 'Unknown']
         vals = np.array([[0.44, 0.44666667, 0.11333333]])
