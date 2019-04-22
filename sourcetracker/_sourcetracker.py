@@ -739,9 +739,11 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
                               create_feature_tables=True)
 
     # Run the function on multiple processors
-    >>> mpm, mps, fas = gibbs(source_df, sink_df, alpha1, alpha2, beta,
-                              restarts, draws_per_restart, burnin, delay,
-                              jobs=4, create_feature_tables=True)
+    >>> mpm, mps, fas = gibbs(source_df, sinks=None, alpha1=alpha1,
+                              alpha2=alpha2, beta=beta, restarts=restarts,
+                              draws_per_restart=draws_per_restart,
+                              burnin=burnin, delay=delay, jobs=5,
+                              create_feature_tables=True)
 
     # LOO prediction.
     >>> mpm, mps, fas = gibbs(source_df, sinks=None, alpha1, alpha2, beta,
