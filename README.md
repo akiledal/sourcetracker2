@@ -100,12 +100,11 @@ Currently, parallelization across a single machine is
 supported for both estimation of source proportions and leave-one-out source
 class prediction. The speedup from parallelization should be approximately a
 factor of `jobs` that are passed. For instance, passing `--jobs 4` will
-decrease runtime approximately 4X (less due to overhead). The package
-`ipyparallel` is used to enable parallelization. Note that you can only specify
-as many jobs as you have sink samples. For instance, passing 10 jobs with only 5
-sink samples will not result in the code executing any faster than passing 5 jobs,
-since there is a 1 sink per job limit. Said another way, a single sink sample
-cannot be split up into multiple jobs.
+decrease runtime approximately 4X (less due to overhead). Note that you can
+only specify as many jobs as you have sink samples. For instance, passing 10
+jobs with only 5 sink samples will not result in the code executing any faster
+than passing 5 jobs, since there is a 1 sink per job limit. Said another way,
+a single sink sample cannot be split up into multiple jobs.
 
 # Installation
 
@@ -233,10 +232,10 @@ strategy**
 rarefaction depth of 1700 and source rarefaction depth of 1500**    
 `sourcetracker2 gibbs -i otu_table.biom -m map.txt -o example5/ --sink_rarefaction_depth 1700 --source_rarefaction_depth 1500`
 
-**Calculate the proportion of each source in each sink, using ipyparallel to run in parallel with 5 jobs**  
+**Calculate the proportion of each source in each sink, parallel with 5 jobs**  
 `sourcetracker2 gibbs -i otu_table.biom -m map.txt -o example6/ --jobs 5`
 
-**Calculate the proportion of each source in each sink, using ipyparallel to run in parallel with 5 jobs. Write the per sink feature tables (what SourceTracker 1 called
+**Calculate the proportion of each source in each sink, with 5 jobs. Write the per sink feature tables (what SourceTracker 1 called
 'full output'). These are feature by sample table indicating the origin source of each sequence (each count of a feature).**  
 `sourcetracker2 gibbs -i otu_table.biom -m map.txt -o example7/ --jobs 5 --per_sink_feature_assignments`
 

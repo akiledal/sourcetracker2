@@ -11,13 +11,9 @@
 from __future__ import division
 
 import os
-import subprocess
-import time
-
 import click
-from biom import load_table
-from ipyparallel import Client
 
+from biom import load_table
 from sourcetracker._cli import cli
 from sourcetracker._sourcetracker import (gibbs, intersect_and_sort_samples,
                                           get_samples, collapse_source_data,
@@ -100,13 +96,6 @@ from sourcetracker._plot import plot_heatmap
                     'number of passes. This is also known as `thinning`. '
                     'Thinning helps reduce the impact of correlation between '
                     'adjacent states of the Markov chain.'))
-@click.option('--cluster_start_delay', required=False, default=25,
-              type=click.INT, show_default=True,
-              help=('When using multiple jobs, the script has to start an '
-                    '`ipcluster`. If ipcluster does not recognize that it '
-                    'has been successfully started, the jobs will not be '
-                    'successfully launched. If this is happening, increase '
-                    'this parameter.'))
 @click.option('--per_sink_feature_assignments', required=False, default=False,
               is_flag=True, show_default=True,
               help=('If True, this option will cause SourceTracker2 to write '
@@ -137,10 +126,10 @@ from sourcetracker._plot import plot_heatmap
                     'source sample.'))
 def gibbs_cli(table_fp, mapping_fp, output_dir, loo, jobs, alpha1, alpha2,
               beta, source_rarefaction_depth, sink_rarefaction_depth, restarts,
-              draws_per_restart, burnin, delay, cluster_start_delay,
-              per_sink_feature_assignments, sample_with_replacement,
-              source_sink_column, source_column_value,
-              sink_column_value, source_category_column):
+              draws_per_restart, burnin, delay, per_sink_feature_assignments,
+              sample_with_replacement, source_sink_column,
+              source_column_value, sink_column_value,
+              source_category_column):
     '''Gibb's sampler for Bayesian estimation of microbial sample sources.
 
     For details, see the project README file.
@@ -219,23 +208,10 @@ def gibbs_cli(table_fp, mapping_fp, output_dir, loo, jobs, alpha1, alpha2,
     else:
         sinks = None
 
-    # If we've been asked to do multiple jobs, we need to spin up a cluster.
-    if jobs > 1:
-        # Launch the ipcluster and wait for it to come up.
-        subprocess.Popen('ipcluster start -n %s --quiet' % jobs, shell=True)
-        time.sleep(cluster_start_delay)
-        cluster = Client()
-    else:
-        cluster = None
-
     # Run the computations.
     mpm, mps, fas = gibbs(csources, sinks, alpha1, alpha2, beta, restarts,
-                          draws_per_restart, burnin, delay, cluster=cluster,
+                          draws_per_restart, burnin, delay, jobs,
                           create_feature_tables=per_sink_feature_assignments)
-
-    # If we started a cluster, shut it down.
-    if jobs > 1:
-        cluster.shutdown(hub=True)
 
     # Write results.
     mpm.to_csv(os.path.join(output_dir, 'mixing_proportions.txt'), sep='\t')

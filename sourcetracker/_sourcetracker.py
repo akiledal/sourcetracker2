@@ -10,9 +10,11 @@
 from __future__ import division
 
 import numpy as np
-from skbio.stats import subsample_counts
 import pandas as pd
+
 from functools import partial
+from multiprocessing import Pool
+from skbio.stats import subsample_counts
 
 
 def validate_gibbs_input(sources, sinks=None):
@@ -598,8 +600,13 @@ def gibbs_sampler(sink, cp, restarts, draws_per_restart, burnin, delay):
     return (final_envcounts, final_env_assignments, final_taxon_assignments)
 
 
+def _gibbs_loo(cp_and_sink, restarts, draws_per_restart, burnin, delay):
+    return gibbs_sampler(cp_and_sink[1], cp_and_sink[0], restarts,
+                         draws_per_restart, burnin, delay)
+
+
 def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
-          draws_per_restart=1, burnin=100, delay=1, cluster=None,
+          draws_per_restart=1, burnin=100, delay=1, jobs=1,
           create_feature_tables=True):
     '''Gibb's sampling API.
 
@@ -666,8 +673,9 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
         additional samples will be drawn every `delay` number of passes. This
         is also known as 'thinning'. Thinning helps reduce the impact of
         correlation between adjacent states of the Markov chain.
-    cluster : ipyparallel.client.client.Client or None
-        An ipyparallel Client object, e.g. a started cluster.
+    jobs : int
+        The number of jobs to start. Typically not more than n-1 available
+        processors
     create_feature_tables : boolean
         If `True` create a feature table for each sink. The feature table
         records the average count of each feature from each source for this
@@ -693,8 +701,6 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
     # An example of using the normal prediction.
     >>> import pandas as pd
     >>> import numpy as np
-    >>> from ipyparallel import Client
-    >>> import subprocess
     >>> import time
     >>> from sourcetracker import gibbs
 
@@ -728,24 +734,21 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
     >>> burnin = 2
     >>> delay = 2
 
-    # Call without a cluster
     >>> mpm, mps, fas = gibbs(source_df, sink_df, alpha1, alpha2, beta,
                               restarts, draws_per_restart, burnin, delay,
-                              cluster=None, create_feature_tables=True)
+                              create_feature_tables=True)
 
-    # Start a cluster and call the function
-    >>> jobs = 4
-    >>> subprocess.Popen('ipcluster start -n %s --quiet' % jobs, shell=True)
-    >>> time.sleep(25)
-    >>> c = Client()
-    >>> mpm, mps, fas = gibbs(source_df, sink_df, alpha1, alpha2, beta,
-                              restarts, draws_per_restart, burnin, delay,
-                              cluster=c, create_feature_tables=True)
+    # Run the function on multiple processors
+    >>> mpm, mps, fas = gibbs(source_df, sinks=None, alpha1=alpha1,
+                              alpha2=alpha2, beta=beta, restarts=restarts,
+                              draws_per_restart=draws_per_restart,
+                              burnin=burnin, delay=delay, jobs=5,
+                              create_feature_tables=True)
 
     # LOO prediction.
     >>> mpm, mps, fas = gibbs(source_df, sinks=None, alpha1, alpha2, beta,
                               restarts, draws_per_restart, burnin, delay,
-                              cluster=c, create_feature_tables=True)
+                              jobs=1, create_feature_tables=True)
     '''
     if not validate_gibbs_parameters(alpha1, alpha2, beta, restarts,
                                      draws_per_restart, burnin, delay):
@@ -760,14 +763,15 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
     else:
         sources = validate_gibbs_input(sources)
 
+    kwargs = {
+            'restarts': restarts,
+            'draws_per_restart': draws_per_restart,
+            'burnin': burnin,
+            'delay': delay
+            }
+
     # Run LOO predictions on `sources`.
     if sinks is None:
-        def f(cp_and_sink):
-            # The import is here to ensure that the engines of the cluster can
-            # access the gibbs_sampler function.
-            from sourcetracker._sourcetracker import gibbs_sampler
-            return gibbs_sampler(cp_and_sink[1], cp_and_sink[0], restarts,
-                                 draws_per_restart, burnin, delay)
         cps_and_sinks = []
         for source in sources.index:
             _sources = sources.select(lambda x: x != source)
@@ -775,35 +779,28 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
             sink = sources.loc[source, :].values
             cps_and_sinks.append((cp, sink))
 
-        if cluster is not None:
-            results = cluster[:].map(f, cps_and_sinks, block=True)
-        else:
-            results = list(map(f, cps_and_sinks))
-        mpm, mps, fas = collate_gibbs_results([i[0] for i in results],
-                                              [i[1] for i in results],
-                                              [i[2] for i in results],
-                                              sources.index, sources.index,
-                                              sources.columns,
-                                              create_feature_tables, loo=True)
-        return mpm, mps, fas
+        f = partial(_gibbs_loo, **kwargs)
+
+        args = cps_and_sinks
+        sinks = sources
+        loo = True
 
     # Run normal prediction on `sinks`.
     else:
         cp = ConditionalProbability(alpha1, alpha2, beta, sources.values)
-        f = partial(gibbs_sampler, cp=cp, restarts=restarts,
-                    draws_per_restart=draws_per_restart, burnin=burnin,
-                    delay=delay)
-        if cluster is not None:
-            results = cluster[:].map(f, sinks.values, block=True)
-        else:
-            results = list(map(f, sinks.values))
-        mpm, mps, fas = collate_gibbs_results([i[0] for i in results],
-                                              [i[1] for i in results],
-                                              [i[2] for i in results],
-                                              sinks.index, sources.index,
-                                              sources.columns,
-                                              create_feature_tables, loo=False)
-        return mpm, mps, fas
+        f = partial(gibbs_sampler, cp=cp, **kwargs)
+        args = sinks.values
+        loo = False
+
+    with Pool(jobs) as p:
+        results = p.map(f, args)
+
+    return collate_gibbs_results([i[0] for i in results],
+                                 [i[1] for i in results],
+                                 [i[2] for i in results],
+                                 sinks.index, sources.index,
+                                 sources.columns,
+                                 create_feature_tables, loo=loo)
 
 
 def cumulative_proportions(all_envcounts, sink_ids, source_ids):
