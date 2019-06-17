@@ -1171,8 +1171,8 @@ class TestGibbs(TestCase):
                               [0, 0, 0, 0, 0, 0],
                               [5, 9, 4, 7, 15, 9]])
         fts_vals = [fts0_vals, fts1_vals, fts2_vals, fts3_vals]
-        exp_fts = [pd.DataFrame(vals, index=source_names + ['Unknown'],
-                   columns=feature_names) for vals in fts_vals]
+        exp_fts = [pd.DataFrame(e, index=source_names + ['Unknown'],
+                   columns=feature_names) for e in fts_vals]
 
         pd.util.testing.assert_frame_equal(obs_mpm, exp_mpm)
         pd.util.testing.assert_frame_equal(obs_mps, exp_mps)
@@ -1222,10 +1222,10 @@ class TestGibbs(TestCase):
                                     burnin=5, delay=2,
                                     create_feature_tables=False)
 
-        exp_vals = np.array([[0.1695, 0.4781, 0.3497, 0.0027],
-                             [0.1695, 0.4794, 0.3497, 0.0014],
-                             [0.1693, 0.4784, 0.3499, 0.0024],
-                             [0.1696, 0.4788, 0.3494, 0.0022]])
+        exp_vals = np.array([[0.1085, 0.3655, 0.29025, 0.23575],
+ [0.10825, 0.36625, 0.2905, 0.235],
+ [0.108, 0.3625, 0.2875, 0.242],
+ [0.1085, 0.36525, 0.29125, 0.235]])
         exp_mpm = pd.DataFrame(exp_vals, index=sinks_names,
                                columns=sources_names + ['Unknown'])
 

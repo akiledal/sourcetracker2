@@ -787,9 +787,17 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
 
     # Run normal prediction on `sinks`.
     else:
-        cp = ConditionalProbability(alpha1, alpha2, beta, sources.values)
-        f = partial(gibbs_sampler, cp=cp, **kwargs)
-        args = sinks.values
+        cps_and_sinks = []
+        for sink_id, vals in sinks.iterrows():
+            cols_to_keep = (sources.sum() + vals) != 0
+            _sources = sources.loc[:, cols_to_keep].copy()
+            vals = vals[cols_to_keep].copy()
+            cp = ConditionalProbability(alpha1, alpha2, beta, _sources.values)
+            cps_and_sinks.append((cp, vals))
+
+        f = partial(_gibbs_loo, **kwargs)
+
+        args = cps_and_sinks
         loo = False
 
     with Pool(jobs) as p:
