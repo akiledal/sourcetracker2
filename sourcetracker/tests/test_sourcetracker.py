@@ -1222,10 +1222,10 @@ class TestGibbs(TestCase):
                                     burnin=5, delay=2,
                                     create_feature_tables=False)
 
-        exp_vals = np.array([[0.1085, 0.3655, 0.29025, 0.23575],
-                             [0.10825, 0.36625, 0.2905, 0.235],
-                             [0.108, 0.3625, 0.2875, 0.242],
-                             [0.1085, 0.36525, 0.29125, 0.235]])
+        exp_vals = np.array([[0.1095, 0.3605, 0.28675, 0.24325],
+                             [0.12175, 0.38575, 0.30325, 0.18925],
+                             [0.114, 0.381, 0.29875, 0.20625],
+                             [0.129, 0.38975, 0.3035, 0.17775]])
         exp_mpm = pd.DataFrame(exp_vals, index=sinks_names,
                                columns=sources_names + ['Unknown'])
 

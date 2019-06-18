@@ -774,14 +774,11 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
     if sinks is None:
         cps_and_sinks = []
         for source in sources.index:
-            _sources = sources.select(lambda x: x != source)
+            _sources = sources.loc[sources.index != source].copy()
             cp = ConditionalProbability(alpha1, alpha2, beta, _sources.values)
             sink = sources.loc[source, :].values
             cps_and_sinks.append((cp, sink))
 
-        f = partial(_gibbs_loo, **kwargs)
-
-        args = cps_and_sinks
         sinks = sources
         loo = True
 
@@ -795,13 +792,11 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
             cp = ConditionalProbability(alpha1, alpha2, beta, _sources.values)
             cps_and_sinks.append((cp, vals))
 
-        f = partial(_gibbs_loo, **kwargs)
-
-        args = cps_and_sinks
         loo = False
 
+    f = partial(_gibbs_loo, **kwargs)
     with Pool(jobs) as p:
-        results = p.map(f, args)
+        results = p.map(f, cps_and_sinks)
 
     return collate_gibbs_results([i[0] for i in results],
                                  [i[1] for i in results],
