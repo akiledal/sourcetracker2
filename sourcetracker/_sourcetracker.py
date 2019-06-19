@@ -600,14 +600,28 @@ def gibbs_sampler(sink, cp, restarts, draws_per_restart, burnin, delay):
     return (final_envcounts, final_env_assignments, final_taxon_assignments)
 
 
-def _gibbs_loo(cp_and_sink, restarts, draws_per_restart, burnin, delay):
-    return gibbs_sampler(cp_and_sink[1], cp_and_sink[0], restarts,
-                         draws_per_restart, burnin, delay)
+def _gibbs_wrapper(sink, sources, restarts, draws_per_restart, burnin, delay,
+                   alpha1, alpha2, beta, loo, filter_zero_counts):
+
+    id_, sink_counts = sink
+
+    if filter_zero_counts:
+        cols_to_keep = sources.sum() + sink_counts > 0
+        sources = sources.loc[:, cols_to_keep].copy()
+        sink_counts = sink_counts[cols_to_keep].copy()
+
+    if loo:
+        sources.drop(id_, inplace=True)
+
+    cp = ConditionalProbability(alpha1, alpha2, beta, sources.values)
+
+    return gibbs_sampler(sink_counts.values, cp, restarts, draws_per_restart,
+                         burnin, delay)
 
 
 def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
           draws_per_restart=1, burnin=100, delay=1, jobs=1,
-          create_feature_tables=True):
+          create_feature_tables=True, filter_zero_counts=True):
     '''Gibb's sampling API.
 
     Notes
@@ -682,6 +696,12 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
         sink. This option can consume large amounts of memory if there are many
         source, sinks, and features. If `False`, feature tables are not
         created.
+    filter_zero_counts: bool
+        If a features count is 0 in all sources, and in a given sink remove it
+        from the analysis. This situation can arise because sourcetracker2
+        requires headers in the source and sink tables to be identical, so
+        there may be sinks that do not have a feature that is present in
+        another sink.
 
     Returns
     -------
@@ -767,43 +787,29 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
             'restarts': restarts,
             'draws_per_restart': draws_per_restart,
             'burnin': burnin,
-            'delay': delay
+            'delay': delay,
+            'filter_zero_counts': filter_zero_counts,
+            'alpha1': alpha1,
+            'alpha2': alpha2,
+            'beta': beta
             }
 
-    # Run LOO predictions on `sources`.
     if sinks is None:
-        cps_and_sinks = []
-        for source in sources.index:
-            _sources = sources.loc[sources.index != source].copy()
-            cp = ConditionalProbability(alpha1, alpha2, beta, _sources.values)
-            sink = sources.loc[source, :].values
-            cps_and_sinks.append((cp, sink))
-
-        sinks = sources
-        loo = True
-
-    # Run normal prediction on `sinks`.
+        sinks = sources.copy()
+        kwargs['loo'] = True
     else:
-        cps_and_sinks = []
-        for sink_id, vals in sinks.iterrows():
-            cols_to_keep = (sources.sum() + vals) != 0
-            _sources = sources.loc[:, cols_to_keep].copy()
-            vals = vals[cols_to_keep].copy()
-            cp = ConditionalProbability(alpha1, alpha2, beta, _sources.values)
-            cps_and_sinks.append((cp, vals))
+        kwargs['loo'] = False
 
-        loo = False
-
-    f = partial(_gibbs_loo, **kwargs)
+    f = partial(_gibbs_wrapper, sources=sources, **kwargs)
     with Pool(jobs) as p:
-        results = p.map(f, cps_and_sinks)
+        results = p.map(f, [e for e in sinks.iterrows()])
 
     return collate_gibbs_results([i[0] for i in results],
                                  [i[1] for i in results],
                                  [i[2] for i in results],
                                  sinks.index, sources.index,
                                  sources.columns,
-                                 create_feature_tables, loo=loo)
+                                 create_feature_tables, kwargs['loo'])
 
 
 def cumulative_proportions(all_envcounts, sink_ids, source_ids):
