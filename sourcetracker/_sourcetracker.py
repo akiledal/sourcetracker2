@@ -600,9 +600,31 @@ def gibbs_sampler(sink, cp, restarts, draws_per_restart, burnin, delay):
     return (final_envcounts, final_env_assignments, final_taxon_assignments)
 
 
-def _gibbs_wrapper(sink, sources, restarts, draws_per_restart, burnin, delay,
-                   alpha1, alpha2, beta, loo, filter_zero_counts):
+def filter_features(sink, sources, loo, filter_zero_counts):
+    """Filter features that have no counts.
 
+    Notes
+    -----
+    The purpose of this function is to abstract the filtering from
+    _gibbs_wrapper in order to enable testing
+
+    Parameters
+    ----------
+    sink : tuple
+        The first element of the tuple should be the index of the sink, the
+        second should be a pandas series containing feature counts, indexed by
+        feature ID. This is necessary in order to pass function to
+        parallelization
+    source : pd.DataFrame
+        A dataframe containing source data (rows are sinks, columns are
+        features)
+    loo : bool
+       If True filter the sink id from the source dataframe. If False do
+       nothing
+    filter_features : bool
+       If True remove any features that have zero counts in both the sink and
+       sources
+    """
     id_, sink_counts = sink
 
     if filter_zero_counts:
@@ -612,9 +634,21 @@ def _gibbs_wrapper(sink, sources, restarts, draws_per_restart, burnin, delay,
 
     if loo:
         sources.drop(id_, inplace=True)
+    return sink_counts, sources
 
+
+def _gibbs_wrapper(sink, sources, restarts, draws_per_restart, burnin, delay,
+                   alpha1, alpha2, beta, loo, filter_zero_counts):
+    """Wrap gibbs call for parallelization.
+
+    Notes
+    -----
+    This function exists only to enable parallelization it should not be run
+    directly
+    """
+    sink_counts, sources = filter_features(sink, sources, loo,
+                                           filter_zero_counts)
     cp = ConditionalProbability(alpha1, alpha2, beta, sources.values)
-
     return gibbs_sampler(sink_counts.values, cp, restarts, draws_per_restart,
                          burnin, delay)
 

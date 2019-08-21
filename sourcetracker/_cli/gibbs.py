@@ -130,9 +130,7 @@ from sourcetracker._plot import plot_heatmap
                     'included in the sourcetracker predictions. This '
                     'situation may arise if sinks are included are from very '
                     'different environments as many features in a given sink '
-                    'may not be found in the other sinks or sources. '
-                    'filtering zeros counts will typically have the effect of '
-                    'increasing the unknown contribution.'))
+                    'may not be found in the other sinks or sources. '))
 def gibbs_cli(table_fp, mapping_fp, output_dir, loo, jobs, alpha1, alpha2,
               beta, source_rarefaction_depth, sink_rarefaction_depth, restarts,
               draws_per_restart, burnin, delay, per_sink_feature_assignments,

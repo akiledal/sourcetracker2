@@ -25,7 +25,8 @@ from sourcetracker._sourcetracker import (intersect_and_sort_samples,
                                           cumulative_proportions,
                                           single_sink_feature_table,
                                           ConditionalProbability,
-                                          gibbs_sampler, gibbs)
+                                          gibbs_sampler, gibbs, _gibbs_wrapper,
+                                          filter_features)
 from sourcetracker._plot import plot_heatmap
 
 
@@ -1265,6 +1266,72 @@ class TestGibbs(TestCase):
         pd.util.testing.assert_index_equal(obs_mpm.index, exp_mpm.index)
         pd.util.testing.assert_index_equal(obs_mpm.columns, exp_mpm.columns)
         np.testing.assert_allclose(obs_mpm.values, exp_mpm.values, atol=.01)
+
+
+class TestGibbsWrapper(TestCase):
+    def setUp(self):
+        self.sink = ('x', pd.Series([1, 0, 0, 0, 0, 0], index=list('abcdef')))
+        self.sources = pd.DataFrame([[1, 0, 0, 0, 0, 0],
+                                     [1, 1, 0, 0, 0, 0],
+                                     [1, 0, 0, 1, 0, 0],
+                                     [1, 0, 0, 0, 1, 0]],
+                                    columns=list('abcdef'), index=list('wxyz'))
+        self.params = {
+                'restarts': 1,
+                'draws_per_restart': 1,
+                'burnin': 1,
+                'delay': 1,
+                'alpha1': .01,
+                'alpha2': .01,
+                'beta': 1
+                }
+
+    def test_valid_input(self):
+        mpm, mps, fts = _gibbs_wrapper(
+                self.sink, self.sources, loo=False,
+                filter_zero_counts=True, **self.params
+                )
+        # This is only asserting the function is returning. The gibbs sampler
+        # has it's own tests
+        self.assertEqual(len(mpm[0]), 5)
+
+    def test_filter_zeros(self):
+        sink_counts, sources = filter_features(
+                self.sink,
+                self.sources, loo=False,
+                filter_zero_counts=True
+                )
+        pd.testing.assert_series_equal(
+                sink_counts, pd.Series(data=[1, 0, 0, 0], index=list('abde'))
+                )
+        pd.testing.assert_frame_equal(sources,
+                                      self.sources.drop(['c', 'f'], axis=1))
+
+    def test_filter_zeros_loo(self):
+        sink_counts, sources = filter_features(
+                self.sink,
+                self.sources, loo=True,
+                filter_zero_counts=True
+                )
+        pd.testing.assert_series_equal(
+                sink_counts, pd.Series(data=[1, 0, 0, 0], index=list('abde'))
+                )
+        pd.testing.assert_frame_equal(
+                sources,
+                self.sources.drop(['c', 'f'], axis=1).drop('x'))
+
+    def test_filter_zeros_no_filter(self):
+        sink_counts, sources = filter_features(
+                self.sink,
+                self.sources, loo=False,
+                filter_zero_counts=False
+                )
+        pd.testing.assert_series_equal(
+                sink_counts, self.sink[1]
+                )
+        pd.testing.assert_frame_equal(
+                sources,
+                self.sources)
 
 
 class PlotHeatmapTests(TestCase):
