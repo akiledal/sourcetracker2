@@ -626,31 +626,49 @@ def filter_features(sink, sources, loo, filter_zero_counts):
        sources
     """
     id_, sink_counts = sink
-
+    columns = sources.columns
     if filter_zero_counts:
         cols_to_keep = sources.sum() + sink_counts > 0
+        columns = columns[cols_to_keep]
         sources = sources.loc[:, cols_to_keep].copy()
         sink_counts = sink_counts[cols_to_keep].copy()
 
     if loo:
         sources.drop(id_, inplace=True)
-    return sink_counts, sources
+    return sink_counts, sources, columns
 
 
 def _gibbs_wrapper(sink, sources, restarts, draws_per_restart, burnin, delay,
-                   alpha1, alpha2, beta, loo, filter_zero_counts):
-    """Wrap gibbs call for parallelization.
+                   alpha1, alpha2, beta, loo, create_feature_tables,
+                   filter_zero_counts):
+    """wrap gibbs call for parallelization.
 
-    Notes
+    notes
     -----
-    This function exists only to enable parallelization it should not be run
+    this function exists only to enable parallelization it should not be run
     directly
     """
-    sink_counts, sources = filter_features(sink, sources, loo,
-                                           filter_zero_counts)
+    sink_name = sink[0]
+    sink_counts, sources, columns = filter_features(sink, sources, loo,
+                                                    filter_zero_counts)
     cp = ConditionalProbability(alpha1, alpha2, beta, sources.values)
-    return gibbs_sampler(sink_counts.values, cp, restarts, draws_per_restart,
-                         burnin, delay)
+
+    env_counts, env_assignments, taxon_assignments = gibbs_sampler(
+            sink_counts.values, cp, restarts, draws_per_restart, burnin, delay)
+
+    # setting loo to False no matter what here as _gibbs_wrapper never returns
+    # data for more than a single sample
+    results = collate_gibbs_results(
+            all_envcounts=[env_counts],
+            all_env_assignments=[env_assignments],
+            all_taxon_assignments=[taxon_assignments],
+            sink_ids=[sink_name],
+            source_ids=sources.index,
+            feature_ids=columns,
+            create_feature_tables=create_feature_tables,
+            loo=False
+            )
+    return results
 
 
 def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
@@ -825,7 +843,8 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
             'filter_zero_counts': filter_zero_counts,
             'alpha1': alpha1,
             'alpha2': alpha2,
-            'beta': beta
+            'beta': beta,
+            'create_feature_tables': create_feature_tables
             }
 
     if sinks is None:
@@ -838,12 +857,17 @@ def gibbs(sources, sinks=None, alpha1=.001, alpha2=.1, beta=10, restarts=10,
     with Pool(jobs) as p:
         results = p.map(f, [e for e in sinks.iterrows()])
 
-    return collate_gibbs_results([i[0] for i in results],
-                                 [i[1] for i in results],
-                                 [i[2] for i in results],
-                                 sinks.index, sources.index,
-                                 sources.columns,
-                                 create_feature_tables, kwargs['loo'])
+    mp = pd.concat([e[0] for e in results], sort=False)
+    mps = pd.concat([e[1] for e in results], sort=False)
+    if create_feature_tables:
+        fas = [e[2][0] for e in results]
+        # If LOO then when data is concatenated there will be a null value for
+        # each of the left out samples
+        mp.fillna(0, inplace=True)
+        mps.fillna(0, inplace=True)
+    else:
+        fas = None
+    return mp, mps, fas
 
 
 def cumulative_proportions(all_envcounts, sink_ids, source_ids):

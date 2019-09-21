@@ -1185,34 +1185,46 @@ class TestGibbs(TestCase):
         exp_mps = pd.DataFrame(vals, index=source_names,
                                columns=source_names + ['Unknown'])
 
-        fts0_vals = np.array([[0, 0, 0, 0, 0, 0],
-                              [93, 87, 101, 0, 0, 0],
+        fts0_vals = np.array([[93, 87, 101, 0, 0, 0],
                               [0, 0, 0, 0, 0, 0],
                               [3, 4, 0, 0, 0, 0],
                               [54, 59, 49, 0, 0, 0]])
         fts1_vals = np.array([[113, 98, 97, 0, 0, 0],
-                              [0, 0, 0, 0, 0, 0],
                               [0, 0, 0, 15, 13, 14],
                               [5, 7, 11, 11, 12, 11],
                               [2, 15, 12, 4, 5, 5]])
         fts2_vals = np.array([[0, 0, 0, 0, 0, 0],
                               [0, 0, 0, 2, 1, 1],
-                              [0, 0, 0, 0, 0, 0],
                               [0, 0, 0, 12, 12, 13],
                               [0, 0, 0, 136, 137, 136]])
         fts3_vals = np.array([[28, 27, 31, 0, 0, 0],
                               [27, 24, 25, 3, 4, 7],
                               [0, 0, 0, 80, 71, 74],
-                              [0, 0, 0, 0, 0, 0],
                               [5, 9, 4, 7, 15, 9]])
         fts_vals = [fts0_vals, fts1_vals, fts2_vals, fts3_vals]
-        exp_fts = [pd.DataFrame(e, index=source_names + ['Unknown'],
-                   columns=feature_names) for e in fts_vals]
 
-        pd.util.testing.assert_frame_equal(obs_mpm, exp_mpm)
-        pd.util.testing.assert_frame_equal(obs_mps, exp_mps)
+        exp_fts = []
+        for index, ft_val in zip(source_names, fts_vals):
+            temp = source_names.copy()
+            temp.remove(index)
+            exp_fts.append(
+                    pd.DataFrame(
+                        ft_val,
+                        index=temp + ['Unknown'],
+                        columns=feature_names)
+                        )
+        pd.util.testing.assert_frame_equal(
+                obs_mpm.sort_index(axis=1),
+                exp_mpm.sort_index(axis=1)
+                )
+        pd.util.testing.assert_frame_equal(
+                obs_mps.sort_index(axis=1),
+                exp_mps.sort_index(axis=1)
+                )
+
         for obs_fts, exp_fts in zip(obs_fts, exp_fts):
-            pd.util.testing.assert_frame_equal(obs_fts, exp_fts)
+            pd.util.testing.assert_frame_equal(obs_fts,
+                                               exp_fts.astype(np.int32))
 
     def test_gibbs_close_to_sourcetracker_1(self):
         '''This test is stochastic; occasional errors might occur.
@@ -1267,6 +1279,37 @@ class TestGibbs(TestCase):
         pd.util.testing.assert_index_equal(obs_mpm.columns, exp_mpm.columns)
         np.testing.assert_allclose(obs_mpm.values, exp_mpm.values, atol=.01)
 
+    def test_gibbs_fa_with_filter(self):
+        feats = ["feat1", "feat2", "feat3", "feat4"]
+        sinks = pd.DataFrame(
+                data=[[1, 0, 1, 4], [1, 4, 1, 0]],
+                columns=feats,
+                index=["sink1", "sink2"]
+                )
+
+        sources = pd.DataFrame(
+                data=[[2, 0, 3, 0], [1, 0, 5, 0]],
+                columns=feats,
+                index=["source1", "source2"],
+                )
+
+        mp_gibbs, mps_gibbs, feats_gibbs = gibbs(
+                sources, sinks, filter_zero_counts=True
+                )
+
+        sink1_feats = pd.DataFrame(
+                [[4, 4, 0], [4, 5, 0], [2, 1, 40]],
+                columns=["feat1", "feat3", "feat4"],
+                index=["source1", "source2", "Unknown"],
+                )
+        sink2_feats = pd.DataFrame(
+                [[7, 0, 5], [1, 0, 5], [2, 40, 0]],
+                columns=["feat1", "feat2", "feat3"],
+                index=['source1', 'source2', 'Unknown'])
+        print(feats_gibbs[1])
+        pd.testing.assert_frame_equal(sink1_feats.astype(np.int32), feats_gibbs[0])
+        pd.testing.assert_frame_equal(sink2_feats.astype(np.int32), feats_gibbs[1])
+
 
 class TestGibbsWrapper(TestCase):
     def setUp(self):
@@ -1289,14 +1332,15 @@ class TestGibbsWrapper(TestCase):
     def test_valid_input(self):
         mpm, mps, fts = _gibbs_wrapper(
                 self.sink, self.sources, loo=False,
-                filter_zero_counts=True, **self.params
+                filter_zero_counts=True, create_feature_tables=True,
+                **self.params
                 )
         # This is only asserting the function is returning. The gibbs sampler
         # has it's own tests
-        self.assertEqual(len(mpm[0]), 5)
+        self.assertEqual(mpm.shape, (1, 5))
 
     def test_filter_zeros(self):
-        sink_counts, sources = filter_features(
+        sink_counts, sources, columns = filter_features(
                 self.sink,
                 self.sources, loo=False,
                 filter_zero_counts=True
@@ -1306,9 +1350,10 @@ class TestGibbsWrapper(TestCase):
                 )
         pd.testing.assert_frame_equal(sources,
                                       self.sources.drop(['c', 'f'], axis=1))
+        self.assertEqual(list('abde'), columns.tolist())
 
     def test_filter_zeros_loo(self):
-        sink_counts, sources = filter_features(
+        sink_counts, sources, columns = filter_features(
                 self.sink,
                 self.sources, loo=True,
                 filter_zero_counts=True
@@ -1319,9 +1364,10 @@ class TestGibbsWrapper(TestCase):
         pd.testing.assert_frame_equal(
                 sources,
                 self.sources.drop(['c', 'f'], axis=1).drop('x'))
+        self.assertEqual(list('abde'), columns.tolist())
 
     def test_filter_zeros_no_filter(self):
-        sink_counts, sources = filter_features(
+        sink_counts, sources, columns = filter_features(
                 self.sink,
                 self.sources, loo=False,
                 filter_zero_counts=False
@@ -1332,6 +1378,8 @@ class TestGibbsWrapper(TestCase):
         pd.testing.assert_frame_equal(
                 sources,
                 self.sources)
+
+        self.assertEqual(list('abcdef'), columns.tolist())
 
 
 class PlotHeatmapTests(TestCase):
