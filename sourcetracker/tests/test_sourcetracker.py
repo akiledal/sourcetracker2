@@ -1306,9 +1306,11 @@ class TestGibbs(TestCase):
                 [[7, 0, 5], [1, 0, 5], [2, 40, 0]],
                 columns=["feat1", "feat2", "feat3"],
                 index=['source1', 'source2', 'Unknown'])
-        print(feats_gibbs[1])
-        pd.testing.assert_frame_equal(sink1_feats.astype(np.int32), feats_gibbs[0])
-        pd.testing.assert_frame_equal(sink2_feats.astype(np.int32), feats_gibbs[1])
+
+        pd.testing.assert_frame_equal(sink1_feats.astype(np.int32),
+                                      feats_gibbs[0])
+        pd.testing.assert_frame_equal(sink2_feats.astype(np.int32),
+                                      feats_gibbs[1])
 
 
 class TestGibbsWrapper(TestCase):
