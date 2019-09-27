@@ -9,7 +9,7 @@
 # ----------------------------------------------------------------------------
 
 import seaborn as sns
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt; matplotlib.use('agg')
 
 
 def plot_heatmap(mpm, cm=plt.cm.viridis, xlabel='Sources', ylabel='Sinks',
