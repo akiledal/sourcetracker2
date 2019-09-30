@@ -12,6 +12,8 @@ from __future__ import division
 
 import os
 import click
+import matplotlib
+matplotlib.use('Agg')
 
 from biom import load_table
 from sourcetracker._cli import cli
