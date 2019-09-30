@@ -10,7 +10,7 @@
 
 import seaborn as sns
 import matplotlib
-matplotlib.use('agg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 #Fixes "Invalid DISPLAY variable" error
