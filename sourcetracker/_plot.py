@@ -9,8 +9,10 @@
 # ----------------------------------------------------------------------------
 
 import seaborn as sns
-import matplotlib.pyplot as plt; matplotlib.use('agg')
+import matplotlib.pyplot as plt
 
+#Fixes "Invalid DISPLAY variable" error
+plt.switch_backend('agg')
 
 def plot_heatmap(mpm, cm=plt.cm.viridis, xlabel='Sources', ylabel='Sinks',
                  title='Mixing Proportions (as Fraction)'):
