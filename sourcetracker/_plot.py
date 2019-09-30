@@ -8,10 +8,11 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import seaborn as sns
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+import seaborn as sns
 
 #Fixes "Invalid DISPLAY variable" error
 plt.switch_backend('agg')
