@@ -9,6 +9,8 @@
 # ----------------------------------------------------------------------------
 
 import seaborn as sns
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
 #Fixes "Invalid DISPLAY variable" error
